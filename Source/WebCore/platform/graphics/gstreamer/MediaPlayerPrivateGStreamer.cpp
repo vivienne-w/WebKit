@@ -2853,8 +2853,49 @@ void MediaPlayerPrivateGStreamer::configureDepayloader(GstElement* depayloader)
 #endif
 }
 
+gboolean logBuffer(GstBuffer** buffer, guint, void* data) {
+    GstBin* bin = (GstBin*) data;
+    GST_ERROR_OBJECT(bin, "new buffer: dts %" G_GUINT64_FORMAT ", pts %" G_GUINT64_FORMAT, (*buffer)->dts, (*buffer)->pts);
+    return TRUE;
+}
+
+GstPadProbeReturn videoDecProbe(GstPad*, GstPadProbeInfo* info, void* data) {
+    GST_DEBUG("video decoder probe triggered");
+    //FIXME
+    switch (info->type) {
+        case GST_PAD_PROBE_TYPE_BUFFER: {
+            GstBuffer* buffer = GST_PAD_PROBE_INFO_BUFFER(info);
+            logBuffer(&buffer, 0, data);
+            break;
+        }
+
+        case GST_PAD_PROBE_TYPE_BUFFER_LIST: {
+            GstBufferList* list = GST_PAD_PROBE_INFO_BUFFER_LIST(info);
+            gst_buffer_list_foreach(list, logBuffer, data);
+            break;
+        }
+
+        default:
+            break;
+    }
+
+    return GST_PAD_PROBE_OK;
+}
+
 void MediaPlayerPrivateGStreamer::configureVideoDecoder(GstElement* decoder)
 {
+    GUniquePtr<char> elemName(gst_element_get_name(decoder));
+    GST_ERROR("found video decoder: %s", elemName.get());
+
+    GstPad* videoDecSinkPad = gst_element_get_static_pad(decoder, "sink");
+    ASSERT(videoDecSinkPad);
+    GST_ERROR("sink pointer addr: %p", videoDecSinkPad);
+
+    guint64 probeId = gst_pad_add_probe(videoDecSinkPad,
+        (GstPadProbeType) (GST_PAD_PROBE_TYPE_BUFFER),
+        (GstPadProbeCallback) videoDecProbe, nullptr, nullptr);
+    GST_ERROR("sink pad probe installed on video decoder %s (return %" G_GUINT64_FORMAT ")", elemName.get(), probeId);
+
     auto decoderHasProperty = [&decoder](const char* name) -> bool {
         return g_object_class_find_property(G_OBJECT_GET_CLASS(decoder), name);
     };
