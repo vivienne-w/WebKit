@@ -28,6 +28,7 @@
 #if ENABLE(VIDEO) && USE(GSTREAMER)
 
 #include "GStreamerCommon.h"
+#include "MediaPlayerPrivateGStreamer.h"
 #include "TrackPrivateBaseGStreamer.h"
 #include "VideoTrackPrivate.h"
 
@@ -57,8 +58,17 @@ public:
 
     int trackIndex() const final { return m_index; }
 
-    TrackID id() const final { return m_trackID.value_or(m_index); }
-    std::optional<AtomString> trackUID() const final { return m_stringId; }
+    TrackID id() const final { return m_trackID.value_or(m_id); }
+    std::optional<AtomString> trackUID() const final
+    {
+        auto player = m_player.get();
+
+        if (player && player->isMediaStreamPlayer())
+            return m_gstStreamId;
+
+        return std::nullopt;
+    }
+
     AtomString label() const final { return m_label; }
     AtomString language() const final { return m_language; }
 
@@ -68,7 +78,7 @@ protected:
     void updateConfigurationFromTags(GRefPtr<GstTagList>&&) final;
 
     void tagsChanged(GRefPtr<GstTagList>&& tags) final { updateConfigurationFromTags(WTFMove(tags)); }
-    void capsChanged(const String&, GRefPtr<GstCaps>&&) final;
+    void capsChanged(TrackID, GRefPtr<GstCaps>&&) final;
 
 private:
     VideoTrackPrivateGStreamer(ThreadSafeWeakPtr<MediaPlayerPrivateGStreamer>&&, unsigned index, GRefPtr<GstPad>&&, bool shouldHandleStreamStartEvent);

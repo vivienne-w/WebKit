@@ -152,13 +152,13 @@ void SourceBufferPrivateGStreamer::flush(TrackID trackId)
     ASSERT(m_tracks.contains(trackId));
     auto track = m_tracks[trackId];
     if (!downcast<MediaSourcePrivateGStreamer>(mediaSource)->hasAllTracks()) {
-        GST_DEBUG_OBJECT(m_playerPrivate.pipeline(), "Source element has not emitted tracks yet, so we only need to clear the queue. trackId = '%s'", track->stringId().string().utf8().data());
+        GST_DEBUG_OBJECT(m_playerPrivate.pipeline(), "Source element has not emitted tracks yet, so we only need to clear the queue. trackId = '%lu'", track->id());
         track->clearQueue();
         return;
     }
 
-    GST_DEBUG_OBJECT(m_playerPrivate.pipeline(), "Source element has emitted tracks, let it handle the flush, which may cause a pipeline flush as well. trackId = '%s'", track->stringId().string().utf8().data());
-    webKitMediaSrcFlush(m_playerPrivate.webKitMediaSrc(), track->stringId());
+    GST_DEBUG_OBJECT(m_playerPrivate.pipeline(), "Source element has emitted tracks, let it handle the flush, which may cause a pipeline flush as well. trackId = '%lu'", track->id());
+    webKitMediaSrcFlush(m_playerPrivate.webKitMediaSrc(), track->id());
 }
 
 void SourceBufferPrivateGStreamer::enqueueSample(Ref<MediaSample>&& sample, TrackID trackId)
@@ -209,7 +209,7 @@ void SourceBufferPrivateGStreamer::allSamplesInTrackEnqueued(TrackID trackId)
     ASSERT(isMainThread());
     ASSERT(m_tracks.contains(trackId));
     auto track = m_tracks[trackId];
-    GST_DEBUG_OBJECT(m_playerPrivate.pipeline(), "Enqueueing EOS for track '%s'", track->stringId().string().utf8().data());
+    GST_DEBUG_OBJECT(m_playerPrivate.pipeline(), "Enqueueing EOS for track '%lu'", track->id());
     track->enqueueObject(adoptGRef(GST_MINI_OBJECT(gst_event_new_eos())));
 }
 
@@ -219,22 +219,22 @@ bool SourceBufferPrivateGStreamer::precheckInitializationSegment(const Initializ
         auto* videoTrackInfo = static_cast<VideoTrackPrivateGStreamer*>(trackInfo.track.get());
         GRefPtr<GstCaps> initialCaps = videoTrackInfo->initialCaps();
         ASSERT(initialCaps);
-        if (!m_tracks.contains(trackInfo.track->id()))
-            m_tracks.try_emplace(trackInfo.track->id(), MediaSourceTrackGStreamer::create(TrackPrivateBaseGStreamer::TrackType::Video, trackInfo.track->id(), videoTrackInfo->stringId(), WTFMove(initialCaps)));
+        if (!m_tracks.contains(videoTrackInfo->streamId()))
+            m_tracks.try_emplace(videoTrackInfo->streamId(), MediaSourceTrackGStreamer::create(TrackPrivateBaseGStreamer::TrackType::Video, videoTrackInfo->streamId(), WTFMove(initialCaps)));
     }
     for (auto& trackInfo : segment.audioTracks) {
         auto* audioTrackInfo = static_cast<AudioTrackPrivateGStreamer*>(trackInfo.track.get());
         GRefPtr<GstCaps> initialCaps = audioTrackInfo->initialCaps();
         ASSERT(initialCaps);
-        if (!m_tracks.contains(trackInfo.track->id()))
-            m_tracks.try_emplace(trackInfo.track->id(), MediaSourceTrackGStreamer::create(TrackPrivateBaseGStreamer::TrackType::Audio, trackInfo.track->id(), audioTrackInfo->stringId(), WTFMove(initialCaps)));
+        if (!m_tracks.contains(audioTrackInfo->streamId()))
+            m_tracks.try_emplace(audioTrackInfo->streamId(), MediaSourceTrackGStreamer::create(TrackPrivateBaseGStreamer::TrackType::Audio, audioTrackInfo->streamId(), WTFMove(initialCaps)));
     }
     for (auto& trackInfo : segment.textTracks) {
         auto* textTrackInfo = static_cast<InbandTextTrackPrivateGStreamer*>(trackInfo.track.get());
         GRefPtr<GstCaps> initialCaps = textTrackInfo->initialCaps();
         ASSERT(initialCaps);
-        if (!m_tracks.contains(trackInfo.track->id()))
-            m_tracks.try_emplace(trackInfo.track->id(), MediaSourceTrackGStreamer::create(TrackPrivateBaseGStreamer::TrackType::Text, trackInfo.track->id(), textTrackInfo->stringId(), WTFMove(initialCaps)));
+        if (!m_tracks.contains(textTrackInfo->streamId()))
+            m_tracks.try_emplace(textTrackInfo->streamId(), MediaSourceTrackGStreamer::create(TrackPrivateBaseGStreamer::TrackType::Text, textTrackInfo->streamId(), WTFMove(initialCaps)));
     }
 
     return true;

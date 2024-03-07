@@ -37,6 +37,11 @@ namespace WebCore {
 class IntSize;
 class SharedBuffer;
 
+using TrackID = uint64_t;
+
+template<typename MappedArg>
+using TrackIDHashMap = HashMap<TrackID, MappedArg, WTF::IntHash<TrackID>, WTF::UnsignedWithZeroKeyHashTraits<TrackID>>;
+
 inline bool webkitGstCheckVersion(guint major, guint minor, guint micro)
 {
     guint currentMajor, currentMinor, currentMicro, currentNano;
@@ -69,6 +74,9 @@ std::optional<FloatSize> getVideoResolutionFromCaps(const GstCaps*);
 bool getSampleVideoInfo(GstSample*, GstVideoInfo&);
 #endif
 StringView capsMediaType(const GstCaps*);
+std::optional<TrackID> getTrackIdFromPad(const GRefPtr<GstPad>&);
+std::optional<TrackID> getTrackIdFromStream(const GRefPtr<GstStream>&);
+std::optional<TrackID> trackIdFromString(StringView stringId);
 bool doCapsHaveType(const GstCaps*, const char*);
 bool areEncryptedCaps(const GstCaps*);
 Vector<String> extractGStreamerOptionsFromCommandLine();
