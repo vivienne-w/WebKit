@@ -119,7 +119,7 @@ private:
 
     RefPtr<MediaSourcePrivateGStreamer> m_mediaSourcePrivate;
     MediaTime m_mediaTimeDuration { MediaTime::invalidTime() };
-    Vector<RefPtr<MediaSourceTrackGStreamer>> m_tracks;
+    Vector<RefPtr<MediaSourceTrackGStreamer>> m_tracks; // TODO: does this need to be a HashMap too?
 
     bool m_isWaitingForPreroll = true;
     bool m_isEosWithNoBuffers = false;
