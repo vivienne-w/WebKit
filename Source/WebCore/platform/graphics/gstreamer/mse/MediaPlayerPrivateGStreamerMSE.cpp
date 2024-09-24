@@ -107,7 +107,7 @@ static Vector<RefPtr<MediaSourceTrackGStreamer>> filterOutRepeatingTracks(const 
     uniqueTracks.reserveInitialCapacity(tracks.size());
 
     for (const auto& track : tracks) {
-        if (!uniqueTracks.containsIf([&track](const auto& current) { return track->id() == current->id() && track->type() == current->type(); }))
+        if (!uniqueTracks.containsIf([&track](const auto& current) { return track->id() == current->id(); }))
             uniqueTracks.append(track);
     }
 

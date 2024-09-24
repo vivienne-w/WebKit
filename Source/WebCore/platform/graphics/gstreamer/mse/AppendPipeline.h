@@ -160,7 +160,7 @@ private:
     GRefPtr<GstElement> m_typefind;
     GRefPtr<GstElement> m_demux;
 
-    Vector<std::unique_ptr<Track>> m_tracks; // TODO: maybe this needs to be a hashmap too?
+    Vector<std::unique_ptr<Track>> m_tracks;
 
     // Used to avoid unnecessary notifications per sample.
     // It is read and written from the streaming thread and written from the main thread.

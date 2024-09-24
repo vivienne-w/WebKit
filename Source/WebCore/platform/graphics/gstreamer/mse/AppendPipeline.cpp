@@ -808,25 +808,12 @@ std::pair<AppendPipeline::CreateTrackResult, AppendPipeline::Track*> AppendPipel
         gst_pad_add_probe(demuxerSrcPad, GST_PAD_PROBE_TYPE_BUFFER, reinterpret_cast<GstPadProbeCallback>(appendPipelineDemuxerBlackHolePadProbe), nullptr, nullptr);
         return { CreateTrackResult::TrackIgnored, nullptr };
     }
+    AtomString trackStringId = generateTrackId(streamType, trackIndex);
 
-    TrackID trackID;
-    switch (streamType) {
-    case Video:
-        trackID = trackIndex + 100;
-        break;
-    default:
-        trackID = trackIndex + 0;
-    }
-
-    AtomString trackStringId = generateTrackId(streamType, trackID);
-
-    GST_DEBUG_OBJECT(pipeline(), "Creating new AppendPipeline::Track with id '%s' and int id %lu", trackStringId.string().utf8().data(), trackID);
+    GST_DEBUG_OBJECT(pipeline(), "Creating new AppendPipeline::Track with id '%s'", trackStringId.string().utf8().data());
     size_t newTrackIndex = m_tracks.size();
-    
-    m_tracks.append(makeUnique<Track>(trackID, trackStringId, streamType, parsedCaps, presentationSize));
-
+    m_tracks.append(makeUnique<Track>(trackIndex, trackStringId, streamType, parsedCaps, presentationSize));
     Track& track = *m_tracks.at(newTrackIndex);
-    GST_DEBUG_OBJECT(pipeline(), "Found new AppendPipeline::Track with id '%s' and int id %lu", track.trackStringId.string().utf8().data(), track.trackId);
     track.initializeElements(this, GST_BIN(m_pipeline.get()));
     track.webKitTrack = makeWebKitTrack(newTrackIndex);
     hookTrackEvents(track);
@@ -917,8 +904,6 @@ void AppendPipeline::linkPadWithTrack(GstPad* demuxerSrcPad, Track& track)
 Ref<WebCore::TrackPrivateBase> AppendPipeline::makeWebKitTrack(int trackIndex)
 {
     Track& appendPipelineTrack = *m_tracks.at(trackIndex);
-
-    GST_ERROR_OBJECT(pipeline(), "makeWebKitTrack");
 
     RefPtr<WebCore::TrackPrivateBase> track;
     TrackPrivateBaseGStreamer* gstreamerTrack = nullptr;

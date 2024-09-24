@@ -66,11 +66,6 @@ TrackPrivateBaseGStreamer::TrackPrivateBaseGStreamer(TrackType type, TrackPrivat
     setPad(WTFMove(pad));
     ASSERT(m_pad);
 
-    if (type == Video)
-        m_id = 100;
-    else
-        m_id = 0;
-
     // We can't call notifyTrackOfTagsChanged() directly, because we need tagsChanged() to setup m_tags.
     tagsChanged();
 }
