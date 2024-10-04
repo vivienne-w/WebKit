@@ -42,6 +42,11 @@ public:
         return adoptRef(*new InbandTextTrackPrivateGStreamer(index, WTFMove(pad), shouldHandleStreamStartEvent));
     }
 
+    static Ref<InbandTextTrackPrivateGStreamer> create(unsigned index, GRefPtr<GstPad>&& pad, TrackID trackId)
+    {
+        return adoptRef(*new InbandTextTrackPrivateGStreamer(index, WTFMove(pad), trackId));
+    }
+
     static Ref<InbandTextTrackPrivateGStreamer> create(ThreadSafeWeakPtr<MediaPlayerPrivateGStreamer>&&, unsigned index, GRefPtr<GstPad> pad)
     {
         return create(index, WTFMove(pad));
@@ -66,6 +71,7 @@ protected:
 
 private:
     InbandTextTrackPrivateGStreamer(unsigned index, GRefPtr<GstPad>&&, bool shouldHandleStreamStartEvent);
+    InbandTextTrackPrivateGStreamer(unsigned index, GRefPtr<GstPad>&&, TrackID trackId);
     InbandTextTrackPrivateGStreamer(unsigned index, GstStream*);
 
     void notifyTrackOfSample();

@@ -74,6 +74,7 @@ public:
 
 protected:
     TrackPrivateBaseGStreamer(TrackType, TrackPrivateBase*, unsigned index, GRefPtr<GstPad>&&, bool shouldHandleStreamStartEvent);
+    TrackPrivateBaseGStreamer(TrackType, TrackPrivateBase*, unsigned index, GRefPtr<GstPad>&&, TrackID trackId);
     TrackPrivateBaseGStreamer(TrackType, TrackPrivateBase*, unsigned index, GstStream*);
 
     void notifyTrackOfTagsChanged();

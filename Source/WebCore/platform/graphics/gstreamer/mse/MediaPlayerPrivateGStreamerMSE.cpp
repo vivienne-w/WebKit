@@ -107,8 +107,12 @@ static Vector<RefPtr<MediaSourceTrackGStreamer>> filterOutRepeatingTracks(const 
     uniqueTracks.reserveInitialCapacity(tracks.size());
 
     for (const auto& track : tracks) {
-        if (!uniqueTracks.containsIf([&track](const auto& current) { return track->id() == current->id(); }))
-            uniqueTracks.append(track);
+        if (uniqueTracks.containsIf([&track](const auto& current) { return track->id() == current->id(); })) {
+            GST_DEBUG("found duplicate track with id %lu, changing id", track->id());
+            track->setId(track->id() + 100);
+        }
+
+        uniqueTracks.append(track);
     }
 
     uniqueTracks.shrinkToFit();

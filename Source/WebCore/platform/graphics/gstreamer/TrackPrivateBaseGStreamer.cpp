@@ -70,6 +70,21 @@ TrackPrivateBaseGStreamer::TrackPrivateBaseGStreamer(TrackType type, TrackPrivat
     tagsChanged();
 }
 
+TrackPrivateBaseGStreamer::TrackPrivateBaseGStreamer(TrackType type, TrackPrivateBase* owner, unsigned index, GRefPtr<GstPad>&& pad, TrackID trackId)
+    : m_notifier(MainThreadNotifier<MainThreadNotification>::create())
+    , m_index(index)
+    , m_id(trackId)
+    , m_type(type)
+    , m_owner(owner)
+    , m_shouldHandleStreamStartEvent(false)
+{
+    setPad(WTFMove(pad));
+    ASSERT(m_pad);
+
+    // We can't call notifyTrackOfTagsChanged() directly, because we need tagsChanged() to setup m_tags.
+    tagsChanged();
+}
+
 TrackPrivateBaseGStreamer::TrackPrivateBaseGStreamer(TrackType type, TrackPrivateBase* owner, unsigned index, GstStream* stream)
     : m_notifier(MainThreadNotifier<MainThreadNotification>::create())
     , m_index(index)

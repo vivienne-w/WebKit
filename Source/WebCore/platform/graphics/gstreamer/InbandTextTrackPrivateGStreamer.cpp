@@ -54,6 +54,15 @@ InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer(unsigned index,
     installUpdateConfigurationHandlers();
 }
 
+InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer(unsigned index, GRefPtr<GstPad>&& pad, TrackID trackId)
+    : InbandTextTrackPrivate(CueFormat::WebVTT)
+    , TrackPrivateBaseGStreamer(TrackPrivateBaseGStreamer::TrackType::Text, this, index, WTFMove(pad), trackId)
+    , m_kind(Kind::Subtitles)
+{
+    ensureTextTrackDebugCategoryInitialized();
+    installUpdateConfigurationHandlers();
+}
+
 InbandTextTrackPrivateGStreamer::InbandTextTrackPrivateGStreamer(unsigned index, GstStream* stream)
     : InbandTextTrackPrivate(CueFormat::WebVTT)
     , TrackPrivateBaseGStreamer(TrackPrivateBaseGStreamer::TrackType::Text, this, index, stream)

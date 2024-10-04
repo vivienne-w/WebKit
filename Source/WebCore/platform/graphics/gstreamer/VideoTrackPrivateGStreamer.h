@@ -44,6 +44,11 @@ public:
         return adoptRef(*new VideoTrackPrivateGStreamer(WTFMove(player), index, WTFMove(pad), shouldHandleStreamStartEvent));
     }
 
+    static Ref<VideoTrackPrivateGStreamer> create(ThreadSafeWeakPtr<MediaPlayerPrivateGStreamer>&& player, unsigned index, GRefPtr<GstPad>&& pad, TrackID trackId)
+    {
+        return adoptRef(*new VideoTrackPrivateGStreamer(WTFMove(player), index, WTFMove(pad), trackId));
+    }
+
     static Ref<VideoTrackPrivateGStreamer> create(ThreadSafeWeakPtr<MediaPlayerPrivateGStreamer>&& player, unsigned index, GstStream* stream)
     {
         return adoptRef(*new VideoTrackPrivateGStreamer(WTFMove(player), index, stream));
@@ -82,6 +87,7 @@ protected:
 
 private:
     VideoTrackPrivateGStreamer(ThreadSafeWeakPtr<MediaPlayerPrivateGStreamer>&&, unsigned index, GRefPtr<GstPad>&&, bool shouldHandleStreamStartEvent);
+    VideoTrackPrivateGStreamer(ThreadSafeWeakPtr<MediaPlayerPrivateGStreamer>&&, unsigned index, GRefPtr<GstPad>&&, TrackID trackId);
     VideoTrackPrivateGStreamer(ThreadSafeWeakPtr<MediaPlayerPrivateGStreamer>&&, unsigned index, GstStream*);
 
     ThreadSafeWeakPtr<MediaPlayerPrivateGStreamer> m_player;
