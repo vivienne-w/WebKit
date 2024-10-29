@@ -61,7 +61,7 @@ JSWebAssemblyArray* fillArray(JSWebAssemblyInstance* instance, Wasm::FieldType f
     return JSWebAssemblyArray::tryCreate(vm, globalObject->webAssemblyArrayStructure(), fieldType, size, WTFMove(values), rtt);
 }
 
-inline EncodedJSValue arrayNew(JSWebAssemblyInstance* instance, uint32_t typeIndex, uint32_t size, EncodedJSValue encValue)
+inline JSValue arrayNew(JSWebAssemblyInstance* instance, uint32_t typeIndex, uint32_t size, EncodedJSValue encValue)
 {
     ASSERT(typeIndex < instance->module().moduleInformation().typeCount());
 
@@ -73,7 +73,7 @@ inline EncodedJSValue arrayNew(JSWebAssemblyInstance* instance, uint32_t typeInd
     size_t elementSize = fieldType.type.elementSize();
 
     if (UNLIKELY(productOverflows<uint32_t>(elementSize, size) || elementSize * size > maxArraySizeInBytes))
-        return JSValue::encode(jsNull());
+        return jsNull();
 
     JSWebAssemblyArray* array = nullptr;
 
@@ -102,10 +102,12 @@ inline EncodedJSValue arrayNew(JSWebAssemblyInstance* instance, uint32_t typeInd
         RELEASE_ASSERT_NOT_REACHED();
     }
     ASSERT(array);
-    return JSValue::encode(array ? JSValue(array) : jsNull());
+    if (array)
+        return array;
+    return jsNull();
 }
 
-inline EncodedJSValue arrayNew(JSWebAssemblyInstance* instance, uint32_t typeIndex, uint32_t size, v128_t value)
+inline JSValue arrayNew(JSWebAssemblyInstance* instance, uint32_t typeIndex, uint32_t size, v128_t value)
 {
     JSGlobalObject* globalObject = instance->globalObject();
     VM& vm = instance->vm();
@@ -120,12 +122,14 @@ inline EncodedJSValue arrayNew(JSWebAssemblyInstance* instance, uint32_t typeInd
     size_t elementSize = fieldType.type.elementSize();
 
     if (UNLIKELY(productOverflows<uint32_t>(elementSize, size) || elementSize * size > maxArraySizeInBytes))
-        return JSValue::encode(jsNull());
+        return jsNull();
 
     FixedVector<v128_t> values(size);
     values.fill(value);
-    JSObject* array = JSWebAssemblyArray::tryCreate(vm, globalObject->webAssemblyArrayStructure(), fieldType, size, WTFMove(values), rtt);
-    return JSValue::encode(array ? JSValue(array) : jsNull());
+    auto* array = JSWebAssemblyArray::tryCreate(vm, globalObject->webAssemblyArrayStructure(), fieldType, size, WTFMove(values), rtt);
+    if (array)
+        return array;
+    return jsNull();
 }
 
 template <typename T>
@@ -147,7 +151,7 @@ JSWebAssemblyArray* copyElementsInReverse(JSWebAssemblyInstance* instance, Wasm:
 }
 
 // Expects arguments in reverse order
-inline EncodedJSValue arrayNewFixed(JSWebAssemblyInstance* instance, uint32_t typeIndex, uint32_t size, uint64_t* arguments)
+inline JSValue arrayNewFixed(JSWebAssemblyInstance* instance, uint32_t typeIndex, uint32_t size, uint64_t* arguments)
 {
     // Get the array element type and determine the element size
     const Wasm::TypeDefinition& arraySignature = instance->module().moduleInformation().typeSignatures[typeIndex]->expand();
@@ -178,7 +182,9 @@ inline EncodedJSValue arrayNewFixed(JSWebAssemblyInstance* instance, uint32_t ty
     default:
         RELEASE_ASSERT_NOT_REACHED();
     }
-    return JSValue::encode(array ? JSValue(array) : jsNull());
+    if (array)
+        return array;
+    return jsNull();
 }
 
 template<typename T>
