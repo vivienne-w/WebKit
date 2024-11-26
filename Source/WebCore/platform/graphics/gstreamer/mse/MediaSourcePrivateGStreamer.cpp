@@ -173,11 +173,9 @@ void MediaSourcePrivateGStreamer::startPlaybackIfHasAllTracks()
 TrackID MediaSourcePrivateGStreamer::registerTrackId(TrackID preferredId)
 {
     ASSERT(isMainThread());
-    RefPtr player = platformPlayer();
 
     if (m_trackIdRegistry.add(preferredId).isNewEntry) {
-        if (player)
-            GST_DEBUG_OBJECT(player->pipeline(), "Registered new Track ID: %" PRIu64 "", preferredId);
+        GST_DEBUG_OBJECT(m_playerPrivate.pipeline(), "Registered new Track ID: %" PRIu64 "", preferredId);
         return preferredId;
     }
 
@@ -187,8 +185,7 @@ TrackID MediaSourcePrivateGStreamer::registerTrackId(TrackID preferredId)
     auto assignedId = std::max((TrackID) 100, *maxRegisteredId + 1);
 
     ASSERT(m_trackIdRegistry.add(assignedId).isNewEntry);
-    if (player)
-        GST_DEBUG_OBJECT(player->pipeline(), "Registered new Track ID: %" PRIu64 " (preferred ID would have been %" PRIu64 ")", assignedId, preferredId);
+    GST_DEBUG_OBJECT(m_playerPrivate.pipeline(), "Registered new Track ID: %" PRIu64 " (preferred ID would have been %" PRIu64 ")", assignedId, preferredId);
 
     return assignedId;
 }
@@ -199,12 +196,10 @@ bool MediaSourcePrivateGStreamer::unregisterTrackId(TrackID trackId)
 
     bool res = m_trackIdRegistry.remove(trackId);
 
-    if (RefPtr player = this->platformPlayer()) {
-        if (res)
-            GST_DEBUG_OBJECT(player->pipeline(), "Unregistered Track ID: %" PRIu64 "", trackId);
-        else
-            GST_WARNING_OBJECT(player->pipeline(), "Failed to unregister unknown Track ID: %" PRIu64 "", trackId);
-    }
+    if (res)
+        GST_DEBUG_OBJECT(m_playerPrivate.pipeline(), "Unregistered Track ID: %" PRIu64 "", trackId);
+    else
+        GST_WARNING_OBJECT(m_playerPrivate.pipeline(), "Failed to unregister unknown Track ID: %" PRIu64 "", trackId);
 
     return res;
 }
