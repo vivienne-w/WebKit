@@ -25,8 +25,12 @@
 
 #pragma once
 
+#include <wtf/CheckedPtr.h>
+#include <wtf/CheckedRef.h>
+#include <wtf/FastMalloc.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
+#include <wtf/TZoneMallocInlines.h>
 #include <wtf/URL.h>
 #include <wtf/WeakHashSet.h>
 #include <wtf/text/WTFString.h>
@@ -43,7 +47,7 @@ enum class WorkerThreadStartMode;
 
 class WorkerInspectorProxy : public RefCounted<WorkerInspectorProxy>, public CanMakeWeakPtr<WorkerInspectorProxy, WeakPtrFactoryInitialization::Eager> {
     WTF_MAKE_NONCOPYABLE(WorkerInspectorProxy);
-    WTF_MAKE_FAST_ALLOCATED;
+
 public:
     static Ref<WorkerInspectorProxy> create(const String& identifier)
     {
@@ -52,12 +56,19 @@ public:
 
     ~WorkerInspectorProxy();
 
-    // A Worker's inspector messages come in and go out through the Page's WorkerAgent.
-    class PageChannel {
+    class PageChannel : public CanMakeThreadSafeCheckedPtr<PageChannel> {
+        WTF_MAKE_TZONE_ALLOCATED_INLINE(PageChannel);
+        WTF_OVERRIDE_DELETE_FOR_CHECKED_PTR(PageChannel);
+
     public:
         virtual ~PageChannel() = default;
+
+        virtual void ref() const = 0;
+        virtual void deref() const = 0;
         virtual void sendMessageFromWorkerToFrontend(WorkerInspectorProxy&, String&&) = 0;
     };
+
+    // A Worker's inspector messages come in and go out through the Page's WorkerAgent.
 
     static WeakHashSet<WorkerInspectorProxy> allWorkerInspectorProxiesCopy();
 
@@ -84,7 +95,7 @@ private:
     String m_identifier;
     URL m_url;
     String m_name;
-    PageChannel* m_pageChannel { nullptr };
+    CheckedPtr<PageChannel> m_pageChannel;
 };
 
 } // namespace WebCore
