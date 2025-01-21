@@ -20,8 +20,7 @@
     window.addEventListener('load', async event => {
       try {
         findMediaElement();
-        // loader = new MediaSourceLoader('content/counting-fragmented-manifest.json');
-        loader = new MediaSourceLoader('content/test-fragmented-video-manifest.json');
+        loader = new MediaSourceLoader('content/counting-subtitled-fragmented-manifest.json');
         await loaderPromise(loader);
 
         source = new MediaSource();
@@ -33,25 +32,52 @@
         run('sourceBuffer.appendBuffer(loader.initSegment())');
         await waitFor(sourceBuffer, 'update');
 
-        // consoleWrite('Append all 7 media segments.')
-        consoleWrite('Append all 10 media segments.')
+        consoleWrite('<br/>Append media segments.')
 
         for (let i = 0; i < loader.mediaSegmentsLength(); i++) {
           run(`sourceBuffer.appendBuffer(loader.mediaSegment(${i}))`);
           await waitFor(sourceBuffer, 'update');
         }
 
-        consoleWrite('Verify tracks');
+        consoleWrite('<br/>Verify track properties.');
         testExpected('video.videoTracks.length', 1);
         testExpected('video.audioTracks.length', 0);
-        // testExpected(`video.textTracks.length`, 2);
+        testExpected('video.textTracks.length', 1);
+        run('element_track = video.textTracks.getTrackById("2")');
+        testExpected('element_track.language', 'en');
+        testExpected('element_track.kind', 'subtitles');
 
-        testExpected(`video.videoTracks[0].id`, 1);
-        testExpected(`video.videoTracks[1].id`, 1);
-        //testExpected(`video.textTracks[0].id`, 2);
-        //testExpected(`video.textTracks[1].id`, 2);
-        //testExpected(`video.textTracks[2].id`, 3);
-        //testExpected(`video.textTracks[3].id`, 3);
+        testExpected('sourceBuffer.videoTracks.length', 1);
+        testExpected('sourceBuffer.audioTracks.length', 0);
+        testExpected('sourceBuffer.textTracks.length', 1);
+        run('buffer_track = sourceBuffer.textTracks.getTrackById("2")');
+        testExpected('buffer_track.language', 'en');
+        testExpected('buffer_track.kind', 'subtitles');
+
+
+        consoleWrite('<br/>Start playback and verify cues');
+        run('element_track.mode = "showing"');
+        await waitFor(video.textTracks, 'change');
+
+        testExpected('element_track.cues.length', 30);
+        testExpected('buffer_track.cues.length', 30);
+
+        run('video.play()');
+        await waitFor(video, 'play');
+        testExpected('element_track.cues.length', 30);
+        testExpected('buffer_track.cues.length', 30);
+
+        run('video.pause()');
+        await waitFor(video, 'pause');
+        testExpected('element_track.cues.length', 30);
+        testExpected('buffer_track.cues.length', 30);
+
+        //run('video.currentTime = 1.1');
+        //await new Promise(resolve => element_track.cues[0].onenter = resolve);
+        //testExpected('element_track.cues[0].text', 'One');
+        //testExpected('element_track.activeCues.length', 1);
+        //testExpected('buffer_track.cues[0].text', 'One');
+        //testExpected('buffer_track.activeCues.length', 1);
 
         endTest();
       } catch (e) {
