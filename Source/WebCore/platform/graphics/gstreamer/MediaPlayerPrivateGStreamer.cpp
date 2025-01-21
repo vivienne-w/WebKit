@@ -1697,7 +1697,6 @@ void MediaPlayerPrivateGStreamer::updateTracks([[maybe_unused]] const GRefPtr<Gs
         type##TrackIndex++;                                             \
     } G_STMT_END
 
-    bool useMediaSource = isMediaSource();
     unsigned audioTrackIndex = 0;
     unsigned videoTrackIndex = 0;
     unsigned textTrackIndex = 0;
@@ -1717,7 +1716,7 @@ void MediaPlayerPrivateGStreamer::updateTracks([[maybe_unused]] const GRefPtr<Gs
             configureMediaStreamAudioTracks();
         } else if (type & GST_STREAM_TYPE_VIDEO && player && player->isVideoPlayer())
             CREATE_OR_SELECT_TRACK(video, Video);
-        else if (type & GST_STREAM_TYPE_TEXT && !useMediaSource)
+        else if (type & GST_STREAM_TYPE_TEXT)
             CREATE_OR_SELECT_TRACK(text, Text);
         else
             GST_WARNING("Unknown track type found for stream %" PRIu64 "", streamId);
@@ -2476,6 +2475,15 @@ void MediaPlayerPrivateGStreamer::configureElement(GstElement* element)
         else if (classifiers.contains("Audio"_s))
             configureAudioDecoder(element);
         return;
+    }
+
+    if (isMediaSource() && g_str_has_prefix(elementName.get(), "parsebin")) {
+        // In MSE, we transcode subtitles/captions to WebVTT in tha AppendPipeline already,
+        // and unless we tell parsebin not to, it would try to parse those to text/x-raw.
+        g_signal_connect(element, "autoplug-continue", G_CALLBACK(+[](GstElement*, GstPad*, GstCaps* caps, gpointer) -> gboolean {
+            GstStructure* structure = gst_caps_get_structure(caps, 0);
+            return g_strcmp0(gstStructureGetName(structure).utf8().data(), "application/x-subtitle-vtt");
+        }), nullptr);
     }
 
     if (isMediaStreamPlayer())
