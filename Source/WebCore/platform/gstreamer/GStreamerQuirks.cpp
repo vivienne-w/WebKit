@@ -199,6 +199,25 @@ bool GStreamerQuirksManager::sinksRequireClockSynchronization() const
 void GStreamerQuirksManager::configureElement(GstElement* element, OptionSet<ElementRuntimeCharacteristics>&& characteristics)
 {
     GST_DEBUG("Configuring element %" GST_PTR_FORMAT, element);
+
+    GUniquePtr<char> elementName(gst_element_get_name(element));
+    if (g_str_has_prefix(elementName.get(), "webkittextsink")) {
+        GRefPtr<GstPad> sinkPad = adoptGRef(gst_element_get_static_pad(element, "sink"));
+        gst_pad_add_probe(sinkPad.get(), GST_PAD_PROBE_TYPE_BUFFER,
+            [](GstPad*, GstPadProbeInfo* info, gpointer data) -> GstPadProbeReturn {
+                GstBuffer* buffer = GST_PAD_PROBE_INFO_BUFFER(info);
+                GstMapInfo map;
+
+                gst_buffer_map (buffer, &map, GST_MAP_READ);
+                GST_MEMDUMP_OBJECT (data, "vtt sample: ", map.data, map.size);
+                gst_buffer_unmap (buffer, &map);
+
+                return GST_PAD_PROBE_OK;
+            }, element, nullptr);
+
+        GST_INFO("added probe to %s", elementName.get());
+    }
+
     for (const auto& quirk : m_quirks)
         quirk->configureElement(element, characteristics);
 }

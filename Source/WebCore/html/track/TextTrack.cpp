@@ -45,6 +45,7 @@
 #include "VTTRegionList.h"
 #include <wtf/NeverDestroyed.h>
 #include <wtf/TZoneMallocInlines.h>
+#include <gst/gst.h>
 
 namespace WebCore {
 
@@ -304,6 +305,8 @@ TextTrackCueList* TextTrack::cues()
     // http://www.whatwg.org/specs/web-apps/current-work/#dom-texttrack-cues
     if (m_mode == Mode::Disabled)
         return nullptr;
+
+    GST_ERROR("mode != disabled, returning cues");
     return &ensureTextTrackCueList();
 }
 
@@ -503,6 +506,9 @@ TextTrackCueList& TextTrack::ensureTextTrackCueList()
 {
     if (!m_cues)
         m_cues = TextTrackCueList::create();
+
+    GST_ERROR("(track %lu / %d) current cue length: %u", trackId(), uniqueId(), m_cues->length());
+
     return *m_cues;
 }
 

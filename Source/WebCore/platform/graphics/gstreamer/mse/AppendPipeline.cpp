@@ -814,6 +814,23 @@ GRefPtr<GstElement> createOptionalEncoderForFormat([[maybe_unused]] GstBin* bin,
             "Continue at your own risk and consider adding %s to your build.", elementClass, elementClass);
         result = makeGStreamerElement("identity", encoderName.ascii().data());
     }
+
+    if (g_str_has_prefix(elementClass, "webvttenc")) {
+        GST_DEBUG("adding probe to encoder src pad");
+        GRefPtr<GstPad> srcPad = adoptGRef(gst_element_get_static_pad(result.get(), "src"));
+        gst_pad_add_probe(srcPad.get(), GST_PAD_PROBE_TYPE_BUFFER,
+            [](GstPad*, GstPadProbeInfo* info, gpointer) -> GstPadProbeReturn {
+                GstBuffer* buffer = GST_PAD_PROBE_INFO_BUFFER(info);
+                GstMapInfo map;
+
+                gst_buffer_map (buffer, &map, GST_MAP_READ);
+                GST_MEMDUMP ("encoder pushed buffer: ", map.data, map.size);
+                gst_buffer_unmap (buffer, &map);
+
+                return GST_PAD_PROBE_OK;
+            }, nullptr, nullptr);
+    }
+
     return result;
 }
 
@@ -943,6 +960,8 @@ void AppendPipeline::linkPadWithTrack(GstPad* demuxerSrcPad, Track& track)
 Ref<WebCore::TrackPrivateBase> AppendPipeline::makeWebKitTrack(int trackIndex, TrackID trackId)
 {
     Track& appendPipelineTrack = *m_tracks.at(trackIndex);
+
+    GST_DEBUG("making webkit track with id %" PRIu64 " and index %d.", trackId, trackIndex);
 
     RefPtr<WebCore::TrackPrivateBase> track;
     TrackPrivateBaseGStreamer* gstreamerTrack = nullptr;
@@ -1140,7 +1159,7 @@ static GstPadProbeReturn appendPipelinePadProbeDebugInformation(GstPad* pad, Gst
 {
     ASSERT(GST_PAD_PROBE_INFO_TYPE(info) & GST_PAD_PROBE_TYPE_BUFFER);
     GstBuffer* buffer = GST_PAD_PROBE_INFO_BUFFER(info);
-    GST_TRACE_OBJECT(pad, "%s: buffer of size %" G_GSIZE_FORMAT " going through", padProbeInformation->description, gst_buffer_get_size(buffer));
+    GST_TRACE_OBJECT(pad, "%s: buffer of size %" G_GSIZE_FORMAT " going through - duration %" GST_TIME_FORMAT, padProbeInformation->description, gst_buffer_get_size(buffer), GST_TIME_ARGS(GST_BUFFER_DURATION(buffer)));
     return GST_PAD_PROBE_OK;
 }
 #endif

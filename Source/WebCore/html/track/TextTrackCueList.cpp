@@ -31,6 +31,7 @@
 #include "TextTrackCueList.h"
 #include <algorithm>
 #include <ranges>
+#include <gst/gst.h>
 
 // Checking sorting is too slow for general use; turn it on explicitly when working on this class.
 #undef CHECK_SORTING
@@ -53,6 +54,8 @@ static inline bool cueSortsBefore(const RefPtr<TextTrackCue>& a, const RefPtr<Te
 
 Ref<TextTrackCueList> TextTrackCueList::create()
 {
+    GST_ERROR("creating text cue list");
+    GST_ERROR("call trace: %s", gst_debug_get_stack_trace(GST_STACK_TRACE_SHOW_FULL));
     return adoptRef(*new TextTrackCueList);
 }
 
@@ -108,6 +111,7 @@ void TextTrackCueList::add(Ref<TextTrackCue>&& cue)
 
     RefPtr<TextTrackCue> cueRefPtr { WTFMove(cue) };
     unsigned insertionPosition = std::ranges::upper_bound(m_vector, cueRefPtr, cueSortsBefore) - m_vector.begin();
+    GST_ERROR("text cue list: adding new cue at position %u", insertionPosition);
     ASSERT_SORTED(m_vector);
     m_vector.insert(insertionPosition, WTFMove(cueRefPtr));
     ASSERT_SORTED(m_vector);

@@ -32,6 +32,8 @@
 #include "ScriptExecutionContext.h"
 #include "VideoTrack.h"
 
+#include "GStreamerCommon.h"
+
 namespace WebCore {
 
 VideoTrackList::VideoTrackList(ScriptExecutionContext* context)
@@ -51,7 +53,11 @@ void VideoTrackList::append(Ref<VideoTrack>&& track)
         if (otherTrack.inbandTrackIndex() > index)
             break;
     }
+    GST_ERROR("m_inbandTracks current size: %lu", m_inbandTracks.size());
+    GST_ERROR("inserting video track (index %lu) with index %lu to position %lu", track->trackId(), index, insertionIndex);
     m_inbandTracks.insert(insertionIndex, track.ptr());
+    GST_ERROR("m_inbandTracks new size: %lu", m_inbandTracks.size());
+    GST_ERROR("call trace: %s", gst_debug_get_stack_trace(GST_STACK_TRACE_SHOW_FULL));
 
     if (!track->trackList())
         track->setTrackList(*this);

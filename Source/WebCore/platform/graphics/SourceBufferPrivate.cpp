@@ -640,6 +640,7 @@ void SourceBufferPrivate::setAllTrackBuffersNeedRandomAccess()
 
 void SourceBufferPrivate::didReceiveInitializationSegment(InitializationSegment&& segment)
 {
+    GST_ERROR("foobar");
     assertIsCurrent(m_dispatcher);
 
     processPendingMediaSamples();

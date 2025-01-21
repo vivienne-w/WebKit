@@ -73,6 +73,8 @@ void MediaSourceTrackGStreamer::notifyWhenReadyForMoreSamples(TrackQueue::LowLev
 void MediaSourceTrackGStreamer::enqueueObject(GRefPtr<GstMiniObject>&& object)
 {
     ASSERT(isMainThread());
+
+    GST_TRACE("track %lu, enqueueing object: %" GST_PTR_FORMAT, m_id, object.get());
     DataMutexLocker queue { m_queueDataMutex };
     queue->enqueueObject(WTFMove(object));
 }

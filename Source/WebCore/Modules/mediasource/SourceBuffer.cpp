@@ -971,20 +971,23 @@ Ref<MediaPromise> SourceBuffer::sourceBufferPrivateDidReceiveInitializationSegme
             // 5.3.5 Queue a task to fire a trusted event named addtrack, that does not bubble and is
             // not cancelable, and that uses the TrackEvent interface, at the VideoTrackList object
             // referenced by the videoTracks attribute on this SourceBuffer object.
+            GST_ERROR("point 1 - appending video track with id %lu", newVideoTrack->trackId());
             videoTracks().append(newVideoTrack.copyRef());
 
             // 5.3.6 Add new video track to the videoTracks attribute on the HTMLMediaElement.
             // 5.3.7 Queue a task to fire a trusted event named addtrack, that does not bubble and is
             // not cancelable, and that uses the TrackEvent interface, at the VideoTrackList object
             // referenced by the videoTracks attribute on the HTMLMediaElement.
-            if (isMainThread())
+            if (isMainThread()) {
+                GST_ERROR("point 2 - adding video track with id %lu", newVideoTrack->trackId());
                 m_source->addVideoTrackToElement(WTFMove(newVideoTrack));
-            else {
+            } else {
                 // 11.5.7.7.3.9 If the parent media source was constructed in a DedicatedWorkerGlobalScope:
                 // Post an internal create track mirror message to [[port to main]] whose implicit handler in Window runs the following steps:
                 // Let mirrored audio track be a new VideoTrack object.
                 // Assign the same property values to mirrored video track as were determined for new video track.
                 // Add mirrored video track to the videoTracks attribute on the HTMLMediaElement.
+                GST_ERROR("point 3 - adding video track with id %lu", newVideoTrack->trackId());
                 m_source->addVideoTrackMirrorToElement(*videoTrackInfo.track, selected);
             }
 

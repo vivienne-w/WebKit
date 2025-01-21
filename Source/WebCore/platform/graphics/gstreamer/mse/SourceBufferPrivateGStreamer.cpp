@@ -93,6 +93,8 @@ Ref<MediaPromise> SourceBufferPrivateGStreamer::appendInternal(Ref<SharedBuffer>
 {
     ASSERT(isMainThread());
 
+    GST_DEBUG("appendInternal");
+
     if (RefPtr player = this->player())
         GST_DEBUG_OBJECT(player->pipeline(), "Appending %zu bytes", data->size());
 
@@ -193,7 +195,7 @@ bool SourceBufferPrivateGStreamer::isReadyForMoreSamples(TrackID trackId)
     auto track = m_tracks[trackId];
     bool ret = track->isReadyForMoreSamples();
     if (RefPtr player = this->player())
-        GST_TRACE_OBJECT(player->pipeline(), "isReadyForMoreSamples: %s", boolForPrinting(ret));
+        GST_TRACE_OBJECT(player->pipeline(), "isReadyForMoreSamples, track %" PRIu64 ": %s", trackId, boolForPrinting(ret));
     return ret;
 }
 

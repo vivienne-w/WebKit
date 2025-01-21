@@ -31,6 +31,8 @@
 #include "AudioTrack.h"
 #include "ContextDestructionObserverInlines.h"
 
+#include "GStreamerCommon.h"
+
 namespace WebCore {
 
 AudioTrackList::AudioTrackList(ScriptExecutionContext* context)
@@ -50,6 +52,7 @@ void AudioTrackList::append(Ref<AudioTrack>&& track)
         if (otherTrack.inbandTrackIndex() > index)
             break;
     }
+    GST_ERROR("inserting audio track with index %lu to position %lu", index, insertionIndex);
     m_inbandTracks.insert(insertionIndex, track.ptr());
 
     if (!track->trackList())

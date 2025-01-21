@@ -612,6 +612,15 @@ static void webKitMediaSrcLoop(void* userData)
 
         ASSERT(GST_BUFFER_PTS_IS_VALID(buffer.get()));
         GST_TRACE_OBJECT(pad, "Pushing buffer downstream: %" GST_PTR_FORMAT, buffer.get());
+
+        if (stream->track->type() == TrackPrivateBaseGStreamer::Text) {
+            GstMapInfo map;
+
+            gst_buffer_map (buffer.get(), &map, GST_MAP_READ);
+            GST_MEMDUMP_OBJECT (pad, "vtt sample: ", map.data, map.size);
+            gst_buffer_unmap (buffer.get(), &map);
+        }
+
         GstFlowReturn result = gst_pad_push(pad, buffer.leakRef());
         if (result != GST_FLOW_OK && result != GST_FLOW_FLUSHING) {
             gst_pad_pause_task(pad);

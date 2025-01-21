@@ -1109,6 +1109,8 @@ void MediaPlayerPrivateGStreamer::syncOnClock(bool sync)
 template <typename TrackPrivateType>
 void MediaPlayerPrivateGStreamer::notifyPlayerOfTrack()
 {
+    GST_TRACE("notifyPlayerOfTrack");
+
     if (UNLIKELY(!m_pipeline || !m_source))
         return;
 
@@ -1126,16 +1128,19 @@ void MediaPlayerPrivateGStreamer::notifyPlayerOfTrack()
     switch (type) {
     case TrackType::Audio:
         typeName = "audio";
+        GST_TRACE("notifyPlayerOfTrack audio");
         hasType = &m_hasAudio;
         variantTracks = &m_audioTracks;
         break;
     case TrackType::Video:
         typeName = "video";
+        GST_TRACE("notifyPlayerOfTrack video");
         hasType = &m_hasVideo;
         variantTracks = &m_videoTracks;
         break;
     case TrackType::Text:
         typeName = "text";
+        GST_TRACE("notifyPlayerOfTrack text");
         hasType = nullptr;
         variantTracks = &m_textTracks;
         break;
@@ -1258,6 +1263,7 @@ void MediaPlayerPrivateGStreamer::videoSinkCapsChanged(GstPad* videoSinkPad)
 
 void MediaPlayerPrivateGStreamer::handleTextSample(GRefPtr<GstSample>&& sample, TrackID streamId)
 {
+    GST_ERROR("handle text sample (cue)");
     for (auto& track : m_textTracks.values()) {
         if (track->streamId() == streamId) {
             track->handleSample(WTFMove(sample));
@@ -1625,6 +1631,8 @@ void MediaPlayerPrivateGStreamer::updateTracks([[maybe_unused]] const GRefPtr<Gs
 {
     ASSERT(!m_isLegacyPlaybin);
 
+    GST_ERROR("updating tracks...");
+
     bool oldHasAudio = m_hasAudio;
     bool oldHasVideo = m_hasVideo;
 
@@ -1702,6 +1710,7 @@ void MediaPlayerPrivateGStreamer::updateTracks([[maybe_unused]] const GRefPtr<Gs
     unsigned textTrackIndex = 0;
     unsigned length = gst_stream_collection_get_size(m_streamCollection.get());
     GST_DEBUG_OBJECT(pipeline(), "Received STREAM_COLLECTION message with upstream id \"%s\" from %" GST_PTR_FORMAT " defining the following streams:", gst_stream_collection_get_upstream_id(m_streamCollection.get()), collectionOwner.get());
+    GST_DEBUG_OBJECT(pipeline(), "current tracks: %u video, %u text", m_videoTracks.size(), m_textTracks.size());
     for (unsigned i = 0; i < length; i++) {
         auto* stream = gst_stream_collection_get_stream(m_streamCollection.get(), i);
         RELEASE_ASSERT(stream);
@@ -2391,6 +2400,8 @@ void MediaPlayerPrivateGStreamer::processMpegTsSection(GstMpegtsSection* section
 
 void MediaPlayerPrivateGStreamer::processTableOfContents(GstMessage* message)
 {
+    GST_TRACE("processTableOfContents");
+
     RefPtr player = m_player.get();
 
     if (player && m_chaptersTrack)
