@@ -1,0 +1,18 @@
+{
+  "url": "content/counting-subtitled-fragmented.mp4",
+  "type": "video/mp4; codecs=\"mp4v-20\"",
+  "init": {
+    "offset": 0,
+    "size": 1361
+  },
+  "media": [
+    {
+      "offset": 1361,
+      "size": 152298
+    },
+    {
+      "offset": 153659,
+      "size": 159537
+    }
+  ]
+}
