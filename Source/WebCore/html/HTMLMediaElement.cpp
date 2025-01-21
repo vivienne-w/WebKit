@@ -1400,6 +1400,28 @@ WallTime HTMLMediaElement::getStartDate() const
     return WallTime::fromRawSeconds(m_player->getStartDate().toDouble());
 }
 
+TextTrackList* HTMLMediaElement::textTracks() const {
+    auto tracks = m_textTracks.get();
+
+    if (tracks)
+        GST_ERROR("HTMLMediaElement, number of text tracks: %u", tracks->length());
+    else
+        GST_ERROR("HTMLMediaElement, m_textTracks is null");
+
+    return tracks;
+}
+
+VideoTrackList* HTMLMediaElement::videoTracks() const {
+    auto tracks = m_videoTracks.get();
+
+    if (tracks)
+        GST_ERROR("HTMLMediaElement, number of video tracks: %u", tracks->length());
+    else
+        GST_ERROR("HTMLMediaElement, m_videoTracks is null");
+
+    return tracks;
+}
+
 void HTMLMediaElement::load()
 {
     Ref protectedThis { *this }; // prepareForLoad may result in a 'beforeload' event, which can make arbitrary DOM mutations.
@@ -4979,6 +5001,7 @@ void HTMLMediaElement::mediaPlayerDidAddTextTrack(InbandTextTrackPrivate& track)
 
 void HTMLMediaElement::mediaPlayerDidAddVideoTrack(VideoTrackPrivate& track)
 {
+    GST_ERROR("adding video track, id: %lu", track.id());
     addVideoTrack(VideoTrack::create(protectedScriptExecutionContext().get(), track));
 }
 
@@ -5034,6 +5057,7 @@ void HTMLMediaElement::addVideoTrack(Ref<VideoTrack>&& track)
     track->setLogger(protectedLogger(), logIdentifier());
 #endif
     track->addClient(*this);
+    GST_ERROR("htmlmediaelement, adding video track (id %lu)", track->trackId());
     ensureVideoTracks().append(WTFMove(track));
 }
 

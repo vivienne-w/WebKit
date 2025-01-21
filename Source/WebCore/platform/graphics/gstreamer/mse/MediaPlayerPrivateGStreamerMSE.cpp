@@ -114,6 +114,7 @@ static Vector<RefPtr<MediaSourceTrackGStreamer>> filterOutRepeatingTracks(const 
     }
 
     uniqueTracks.shrinkToFit();
+    GST_INFO("number of tracks after filtering repeating ones: %lu", uniqueTracks.size());
     return uniqueTracks;
 }
 

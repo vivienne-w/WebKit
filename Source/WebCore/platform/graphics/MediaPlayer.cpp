@@ -28,6 +28,7 @@
 
 #if ENABLE(VIDEO)
 
+#include "VideoTrackPrivate.h"
 #include "CommonAtomStrings.h"
 #include "ContentType.h"
 #include "DeprecatedGlobalSettings.h"
@@ -1638,6 +1639,7 @@ void MediaPlayer::removeTextTrack(InbandTextTrackPrivate& track)
 
 void MediaPlayer::addVideoTrack(VideoTrackPrivate& track)
 {
+    GST_ERROR("adding video track, id: %lu", track.id());
     client().mediaPlayerDidAddVideoTrack(track);
 }
 

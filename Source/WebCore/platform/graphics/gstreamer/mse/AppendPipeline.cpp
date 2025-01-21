@@ -918,6 +918,8 @@ Ref<WebCore::TrackPrivateBase> AppendPipeline::makeWebKitTrack(int trackIndex, T
 {
     Track& appendPipelineTrack = *m_tracks.at(trackIndex);
 
+    GST_DEBUG("making webkit track with id %" PRIu64 " and index %d.", trackId, trackIndex);
+
     RefPtr<WebCore::TrackPrivateBase> track;
     TrackPrivateBaseGStreamer* gstreamerTrack = nullptr;
     // FIXME: AudioTrackPrivateGStreamer etc. should probably use pads of the playback pipeline rather than the append pipeline.

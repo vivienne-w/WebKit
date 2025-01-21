@@ -99,6 +99,8 @@ void InbandTextTrackPrivateGStreamer::handleSample(GRefPtr<GstSample>&& sample)
         m_pendingSamples.append(WTFMove(sample));
     }
 
+    GST_INFO("Got new sample");
+
     RefPtr<InbandTextTrackPrivateGStreamer> protectedThis(this);
     m_notifier->notify(MainThreadNotification::NewSample, [protectedThis] {
         protectedThis->notifyTrackOfSample();
@@ -112,6 +114,8 @@ void InbandTextTrackPrivateGStreamer::notifyTrackOfSample()
         Locker locker { m_sampleMutex };
         m_pendingSamples.swap(samples);
     }
+
+    GST_INFO("notifying about new sample");
 
     for (auto& sample : samples) {
         GstBuffer* buffer = gst_sample_get_buffer(sample.get());

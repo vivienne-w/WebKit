@@ -34,6 +34,8 @@
 #include "LoadableTextTrack.h"
 #include <wtf/TZoneMallocInlines.h>
 
+#include "GStreamerCommon.h"
+
 namespace WebCore {
 
 WTF_MAKE_TZONE_OR_ISO_ALLOCATED_IMPL(TextTrackList);
@@ -47,6 +49,12 @@ TextTrackList::~TextTrackList() = default;
 
 unsigned TextTrackList::length() const
 {
+    auto addTracks = m_addTrackTracks.size();
+    auto elementTracks = m_elementTracks.size();
+    auto inbandTracks = m_inbandTracks.size();
+
+    GST_ERROR("tracks: %lu add, %lu element, %lu inband", addTracks, elementTracks, inbandTracks);
+
     return m_addTrackTracks.size() + m_elementTracks.size() + m_inbandTracks.size();
 }
 
@@ -181,6 +189,7 @@ void TextTrackList::invalidateTrackIndexesAfterTrack(TextTrack& track)
 
 void TextTrackList::append(Ref<TextTrack>&& track)
 {
+    GST_ERROR("foobar");
     if (track->trackType() == TextTrack::AddTrack)
         m_addTrackTracks.append(track.ptr());
     else if (auto* textTrack = dynamicDowncast<LoadableTextTrack>(track.get())) {
@@ -190,7 +199,10 @@ void TextTrackList::append(Ref<TextTrack>&& track)
     } else if (track->trackType() == TextTrack::InBand) {
         // Insert tracks added for in-band in the media file order.
         size_t index = downcast<InbandTextTrack>(track.get()).inbandTrackIndex();
+        GST_ERROR("m_inbandTracks current size: %lu", m_inbandTracks.size());
+        GST_ERROR("inserting inband text track (index %lu) at index %lu", track->trackId(), index);
         m_inbandTracks.insert(index, track.ptr());
+        GST_ERROR("m_inbandTracks new size: %lu", m_inbandTracks.size());
     } else
         ASSERT_NOT_REACHED();
 

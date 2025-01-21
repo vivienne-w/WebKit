@@ -390,8 +390,8 @@ public:
     TextTrackList& ensureTextTracks();
     VideoTrackList& ensureVideoTracks();
     AudioTrackList* audioTracks() const { return m_audioTracks.get(); }
-    TextTrackList* textTracks() const { return m_textTracks.get(); }
-    VideoTrackList* videoTracks() const { return m_videoTracks.get(); }
+    TextTrackList* textTracks() const;
+    VideoTrackList* videoTracks() const;
 
     CueList currentlyActiveCues() const;
 
