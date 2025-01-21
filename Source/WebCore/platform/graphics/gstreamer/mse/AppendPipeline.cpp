@@ -46,6 +46,8 @@
 #include <wtf/glib/RunLoopSourcePriority.h>
 #include <wtf/text/MakeString.h>
 
+#include <fnmatch.h>
+
 GST_DEBUG_CATEGORY_EXTERN(webkit_mse_debug);
 #define GST_CAT_DEFAULT webkit_mse_debug
 
@@ -305,7 +307,9 @@ std::tuple<GRefPtr<GstCaps>, AppendPipeline::StreamType, FloatSize> AppendPipeli
 
     auto originalMediaType = capsMediaType(demuxerSrcPadCaps);
     auto& gstRegistryScanner = GStreamerRegistryScannerMSE::singleton();
-    if (!gstRegistryScanner.isCodecSupported(GStreamerRegistryScanner::Configuration::Decoding, originalMediaType.toStringWithoutCopying())) {
+    if (doCapsHaveType(demuxerSrcPadCaps, GST_TEXT_CAPS_TYPE_PREFIX) || !fnmatch(originalMediaType.toString().utf8().data(), "application/x-subtitle-vtt", 0)) {
+        streamType = StreamType::Text;
+    } else if (!gstRegistryScanner.isCodecSupported(GStreamerRegistryScanner::Configuration::Decoding, originalMediaType.toString())) {
         streamType = StreamType::Invalid;
     } else if (doCapsHaveType(demuxerSrcPadCaps, GST_VIDEO_CAPS_TYPE_PREFIX)) {
         presentationSize = getVideoResolutionFromCaps(demuxerSrcPadCaps).value_or(FloatSize());
@@ -313,8 +317,6 @@ std::tuple<GRefPtr<GstCaps>, AppendPipeline::StreamType, FloatSize> AppendPipeli
     } else {
         if (doCapsHaveType(demuxerSrcPadCaps, GST_AUDIO_CAPS_TYPE_PREFIX))
             streamType = StreamType::Audio;
-        else if (doCapsHaveType(demuxerSrcPadCaps, GST_TEXT_CAPS_TYPE_PREFIX))
-            streamType = StreamType::Text;
     }
 
     return { WTFMove(parsedCaps), streamType, WTFMove(presentationSize) };
@@ -507,6 +509,8 @@ void AppendPipeline::didReceiveInitializationSegment()
         }
     }
 
+    HashSet<unsigned int, WTF::IntHash<unsigned int>, WTF::UnsignedWithZeroKeyHashTraits<unsigned int>> textTrackIndices;
+
     for (std::unique_ptr<Track>& track : m_tracks) {
 #ifndef GST_DISABLE_GST_DEBUG
         GST_DEBUG_OBJECT(pipeline(), "Adding track to initialization with segment type %s, id %" PRIu64 ".", streamTypeToString(track->streamType), track->trackId);
@@ -526,6 +530,27 @@ void AppendPipeline::didReceiveInitializationSegment()
             info.track = static_cast<VideoTrackPrivateGStreamer*>(track->webKitTrack.get());
             info.description = GStreamerMediaDescription::create(track->caps);
             initializationSegment.videoTracks.append(info);
+            break;
+        }
+        case Text: {
+            ASSERT(track->webKitTrack);
+            SourceBufferPrivateClient::InitializationSegment::TextTrackInformation info;
+
+            // TextTrackList doesn't check the index it uses for insertion of inband text tracks,
+            // unlike Audio/VideoTrackList, so we need to rearrange the indices here to ensure it
+            // won't try to insert out-of-range indices and crash.
+            auto textTrack = static_cast<InbandTextTrackPrivateGStreamer*>(track->webKitTrack.get());
+            unsigned int newIndex = 0;
+
+            if (!textTrackIndices.isEmpty())
+                newIndex = *std::max_element(textTrackIndices.begin(), textTrackIndices.end()) + 1;
+
+            textTrackIndices.add(newIndex);
+            textTrack->setIndex(newIndex);
+
+            info.track = textTrack;
+            info.description = GStreamerMediaDescription::create(track->caps);
+            initializationSegment.textTracks.append(info);
             break;
         }
         default:
