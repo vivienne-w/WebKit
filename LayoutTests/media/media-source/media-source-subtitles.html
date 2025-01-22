@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>media-source-webvtt-track</title>
+  <script src="media-source-loader.js"></script>
+  <script src="../video-test.js"></script>
+  <script>
+    var loader;
+    var source;
+    var sourceBuffer;
+
+    function loaderPromise(loader) {
+      return new Promise((resolve, reject) => {
+        loader.onload = resolve;
+        loader.onerror = reject;
+      });
+    }
+
+    window.addEventListener('load', async event => {
+      try {
+        findMediaElement();
+        // loader = new MediaSourceLoader('content/counting-fragmented-manifest.json');
+        loader = new MediaSourceLoader('content/test-fragmented-video-manifest.json');
+        await loaderPromise(loader);
+
+        source = new MediaSource();
+        run('video.src = URL.createObjectURL(source)');
+        await waitFor(source, 'sourceopen');
+        waitForEventAndFail('error');
+
+        run('sourceBuffer = source.addSourceBuffer(loader.type())');
+        run('sourceBuffer.appendBuffer(loader.initSegment())');
+        await waitFor(sourceBuffer, 'update');
+
+        // consoleWrite('Append all 7 media segments.')
+        consoleWrite('Append all 10 media segments.')
+
+        for (let i = 0; i < loader.mediaSegmentsLength(); i++) {
+          run(`sourceBuffer.appendBuffer(loader.mediaSegment(${i}))`);
+          await waitFor(sourceBuffer, 'update');
+        }
+
+        consoleWrite('Verify tracks');
+        testExpected('video.videoTracks.length', 1);
+        testExpected('video.audioTracks.length', 0);
+        // testExpected(`video.textTracks.length`, 2);
+
+        testExpected(`video.videoTracks[0].id`, 1);
+        testExpected(`video.videoTracks[1].id`, 1);
+        //testExpected(`video.textTracks[0].id`, 2);
+        //testExpected(`video.textTracks[1].id`, 2);
+        //testExpected(`video.textTracks[2].id`, 3);
+        //testExpected(`video.textTracks[3].id`, 3);
+
+        endTest();
+      } catch (e) {
+        failTest(`Caught exception: "${e}"`);
+      }
+    });
+  </script>
+</head>
+
+<body>
+  <div>
+    Foo
+  </div>
+  <video controls></video>
+</body>
+
+</html>
