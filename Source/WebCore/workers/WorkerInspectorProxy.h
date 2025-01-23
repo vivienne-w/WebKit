@@ -25,14 +25,14 @@
 
 #pragma once
 
-#include <wtf/CheckedPtr.h>
-#include <wtf/CheckedRef.h>
-#include <wtf/FastMalloc.h>
+#include "PageIdentifier.h"
+#include "ScriptExecutionContextIdentifier.h"
+#include <variant>
+#include <wtf/Function.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
 #include <wtf/TZoneMallocInlines.h>
 #include <wtf/URL.h>
-#include <wtf/WeakHashSet.h>
 #include <wtf/text/WTFString.h>
 
 // All of these methods should be called on the Main Thread.
@@ -70,7 +70,8 @@ public:
 
     // A Worker's inspector messages come in and go out through the Page's WorkerAgent.
 
-    static WeakHashSet<WorkerInspectorProxy> allWorkerInspectorProxiesCopy();
+    static Vector<Ref<WorkerInspectorProxy>> proxiesForPage(PageIdentifier);
+    static Vector<Ref<WorkerInspectorProxy>> proxiesForWorkerGlobalScope(ScriptExecutionContextIdentifier);
 
     const URL& url() const { return m_url; }
     const String& name() const { return m_name; }
@@ -78,7 +79,7 @@ public:
     ScriptExecutionContext* scriptExecutionContext() const { return m_scriptExecutionContext.get(); }
 
     WorkerThreadStartMode workerStartMode(ScriptExecutionContext&);
-    void workerStarted(ScriptExecutionContext*, WorkerThread*, const URL&, const String& name);
+    void workerStarted(ScriptExecutionContext&, WorkerThread*, const URL&, const String& name);
     void workerTerminated();
 
     void resumeWorkerIfPaused();
@@ -90,7 +91,14 @@ public:
 private:
     explicit WorkerInspectorProxy(const String& identifier);
 
+    using PageOrWorkerGlobalScopeIdentifier = std::variant<PageIdentifier, ScriptExecutionContextIdentifier>;
+    static std::optional<PageOrWorkerGlobalScopeIdentifier> pageOrWorkerGlobalScopeIdentifier(ScriptExecutionContext&);
+
+    void addToProxyMap();
+    void removeFromProxyMap();
+
     RefPtr<ScriptExecutionContext> m_scriptExecutionContext;
+    std::optional<PageOrWorkerGlobalScopeIdentifier> m_contextIdentifier;
     RefPtr<WorkerThread> m_workerThread;
     String m_identifier;
     URL m_url;
