@@ -1578,6 +1578,10 @@ void configureAudioDecoderForHarnessing(const GRefPtr<GstElement>& element)
 {
     if (gstObjectHasProperty(element.get(), "max-errors"))
         g_object_set(element.get(), "max-errors", 0, nullptr);
+
+    // rawaudioparse-specific:
+    if (gstObjectHasProperty(element.get(), "use-sink-caps"))
+        g_object_set(element.get(), "use-sink-caps", TRUE, nullptr);
 }
 
 void configureVideoDecoderForHarnessing(const GRefPtr<GstElement>& element)
