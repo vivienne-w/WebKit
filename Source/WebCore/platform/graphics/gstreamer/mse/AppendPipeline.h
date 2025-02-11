@@ -62,6 +62,7 @@ private:
     enum StreamType { Audio, Video, Text, Unknown, Invalid };
 #ifndef GST_DISABLE_GST_DEBUG
     static const char * streamTypeToString(StreamType);
+    static const char * streamTypeToStringLower(StreamType);
 #endif
 
     struct Track {

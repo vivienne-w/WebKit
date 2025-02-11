@@ -85,8 +85,8 @@ static GstPadProbeReturn appendPipelineAppsinkPadEventProbe(GstPad*, GstPadProbe
 #endif
 static GstPadProbeReturn appendPipelineDemuxerBlackHolePadProbe(GstPad*, GstPadProbeInfo*, gpointer);
 static GstPadProbeReturn matroskademuxForceSegmentStartToEqualZero(GstPad*, GstPadProbeInfo*, void*);
-static GRefPtr<GstElement> createOptionalEncoderForFormat(GstBin*, TrackID, const GstCaps*);
-static GRefPtr<GstElement> createOptionalParserForFormat(GstBin*, TrackID, const GstCaps*);
+static GRefPtr<GstElement> createOptionalEncoderForFormat(GstBin*, String, const GstCaps*);
+static GRefPtr<GstElement> createOptionalParserForFormat(GstBin*, String, const GstCaps*);
 
 // Wrapper for gst_element_set_state() that emits a critical if the state change fails or is not synchronous.
 static void assertedElementSetState(GstElement* element, GstState desiredState)
@@ -709,7 +709,7 @@ void AppendPipeline::handleAppsinkNewSampleFromStreamingThread(GstElement*)
     }
 }
 
-GRefPtr<GstElement> createOptionalParserForFormat([[maybe_unused]] GstBin* bin, TrackID trackId, const GstCaps* caps)
+GRefPtr<GstElement> createOptionalParserForFormat([[maybe_unused]] GstBin* bin, String parserName, const GstCaps* caps)
 {
     // Parser elements have either or both of two functions:
     //
@@ -729,7 +729,6 @@ GRefPtr<GstElement> createOptionalParserForFormat([[maybe_unused]] GstBin* bin, 
 
     GstStructure* structure = gst_caps_get_structure(caps, 0);
     auto mediaType = gstStructureGetName(structure);
-    auto parserName = makeString(trackId, "_parser"_s);
     // Since parsers are not needed in every case, we can use an identity element as pass-through
     // parser for cases where a parser is not needed, making the management of elements and pads
     // more orthogonal.
@@ -794,11 +793,10 @@ GRefPtr<GstElement> createOptionalParserForFormat([[maybe_unused]] GstBin* bin, 
     return result;
 }
 
-GRefPtr<GstElement> createOptionalEncoderForFormat([[maybe_unused]] GstBin* bin, TrackID trackId, const GstCaps* caps)
+GRefPtr<GstElement> createOptionalEncoderForFormat([[maybe_unused]] GstBin* bin, String encoderName, const GstCaps* caps)
 {
     GstStructure* structure = gst_caps_get_structure(caps, 0);
     auto mediaType = gstStructureGetName(structure);
-    auto encoderName = makeString(trackId, "_encoder"_s);
 
     const char* elementClass = "identity";
 
@@ -998,7 +996,8 @@ void AppendPipeline::Track::emplaceOptionalParserForFormat(GstBin* bin, const GR
         gst_bin_remove(bin, parser.get());
     }
 
-    parser = createOptionalParserForFormat(bin, trackId, newCaps.get());
+    auto parserName = makeString("parser_"_s, span(streamTypeToStringLower(streamType)), "_"_s, trackId);
+    parser = createOptionalParserForFormat(bin, parserName, newCaps.get());
     gst_bin_add(bin, parser.get());
     gst_element_sync_state_with_parent(parser.get());
     gst_element_link(parser.get(), encoder.get());
@@ -1008,7 +1007,8 @@ void AppendPipeline::Track::emplaceOptionalParserForFormat(GstBin* bin, const GR
 
 void AppendPipeline::Track::emplaceOptionalEncoderForFormat(GstBin* bin, const GRefPtr<GstCaps>& newCaps)
 {
-    encoder = createOptionalEncoderForFormat(bin, trackId, newCaps.get());
+    auto encoderName = makeString("encoder_"_s, span(streamTypeToStringLower(streamType)), "_"_s, trackId);
+    encoder = createOptionalEncoderForFormat(bin, encoderName, newCaps.get());
     gst_bin_add(bin, encoder.get());
     gst_element_sync_state_with_parent(encoder.get());
     gst_element_link(encoder.get(), appsink.get());
@@ -1112,6 +1112,24 @@ const char* AppendPipeline::streamTypeToString(StreamType streamType)
         return "Unknown";
     default:
         return "(Unsupported stream type)";
+    }
+}
+
+const char* AppendPipeline::streamTypeToStringLower(StreamType streamType)
+{
+    switch (streamType) {
+    case StreamType::Audio:
+        return "audio";
+    case StreamType::Video:
+        return "video";
+    case StreamType::Text:
+        return "text";
+    case StreamType::Invalid:
+        return "invalid";
+    case StreamType::Unknown:
+        return "unknown";
+    default:
+        return "(unsupported_stream_type)";
     }
 }
 #endif
