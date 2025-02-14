@@ -2488,6 +2488,15 @@ void MediaPlayerPrivateGStreamer::configureElement(GstElement* element)
         return;
     }
 
+    if (isMediaSource() && g_str_has_prefix(elementName.get(), "parsebin")) {
+        // In MSE, we transcode subtitles/captions to WebVTT in tha AppendPipeline already,
+        // and unless we tell parsebin not to, it would try to parse those to text/x-raw.
+        g_signal_connect(element, "autoplug-continue", G_CALLBACK(+[](GstElement*, GstPad*, GstCaps* caps, gpointer) -> gboolean {
+            GstStructure* structure = gst_caps_get_structure(caps, 0);
+            return g_strcmp0(gstStructureGetName(structure).utf8().data(), "application/x-subtitle-vtt");
+        }), nullptr);
+    }
+
     if (isMediaStreamPlayer())
         return;
 
