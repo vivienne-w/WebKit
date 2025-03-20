@@ -165,6 +165,8 @@ GStreamerRegistryScanner::ElementFactories::ElementFactories(OptionSet<ElementFa
         rtpDepayloaderFactories = gst_element_factory_list_get_elements(GST_ELEMENT_FACTORY_TYPE_DEPAYLOADER, GST_RANK_MARGINAL);
     if (types.contains(Type::Decryptor))
         decryptorFactories = gst_element_factory_list_get_elements(GST_ELEMENT_FACTORY_TYPE_DECRYPTOR, GST_RANK_MARGINAL);
+    if (types.contains(Type::TextDecoder))
+        textDecoderFactories = gst_element_factory_list_get_elements(GST_ELEMENT_FACTORY_TYPE_DECODER | GST_ELEMENT_FACTORY_TYPE_MEDIA_SUBTITLE, GST_RANK_MARGINAL);
 }
 
 GStreamerRegistryScanner::ElementFactories::~ElementFactories()
@@ -180,6 +182,7 @@ GStreamerRegistryScanner::ElementFactories::~ElementFactories()
     gst_plugin_feature_list_free(rtpPayloaderFactories);
     gst_plugin_feature_list_free(rtpDepayloaderFactories);
     gst_plugin_feature_list_free(decryptorFactories);
+    gst_plugin_feature_list_free(textDecoderFactories);
 }
 
 const char* GStreamerRegistryScanner::ElementFactories::elementFactoryTypeToString(GStreamerRegistryScanner::ElementFactories::Type factoryType)
@@ -207,6 +210,8 @@ const char* GStreamerRegistryScanner::ElementFactories::elementFactoryTypeToStri
         return "RTP depayloader";
     case Type::Decryptor:
         return "Decryptor";
+    case Type::TextDecoder:
+        return "text decoder";
     case Type::All:
         break;
     }
@@ -239,6 +244,8 @@ GList* GStreamerRegistryScanner::ElementFactories::factory(GStreamerRegistryScan
         return rtpDepayloaderFactories;
     case GStreamerRegistryScanner::ElementFactories::Type::Decryptor:
         return decryptorFactories;
+    case GStreamerRegistryScanner::ElementFactories::Type::TextDecoder:
+        return textDecoderFactories;
     case GStreamerRegistryScanner::ElementFactories::Type::All:
         break;
     }
@@ -523,6 +530,10 @@ void GStreamerRegistryScanner::initializeDecoders(const GStreamerRegistryScanner
         // so we don't actually push any WebVTT to the playback pipeline.
         RegistryLookupResult webvttDecoderAvailable = { true, false, nullptr };
         m_decoderCodecMap.add("wvtt"_s, webvttDecoderAvailable);
+
+        auto srtDecoderAvailable = factories.hasElementForMediaType(ElementFactories::Type::TextDecoder, "application/x-subtitle", ElementFactories::CheckHardwareClassifier::No);
+        m_decoderCodecMap.add("tx3g"_s, srtDecoderAvailable);
+
         return;
     }
 

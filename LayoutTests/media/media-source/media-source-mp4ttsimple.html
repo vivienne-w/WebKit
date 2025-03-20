@@ -2,7 +2,7 @@
 <html>
 
 <head>
-  <title>media-source-vttsimple</title>
+  <title>media-source-mp4ttsimple</title>
   <script src="media-source-loader.js"></script>
   <script src="../video-test.js"></script>
   <script>
@@ -20,7 +20,7 @@
     window.addEventListener('load', async event => {
       try {
         findMediaElement();
-        loader = new MediaSourceLoader('content/counting-video-vttsimple-manifest.json');
+        loader = new MediaSourceLoader('content/counting-h264-mp4ttsimple-manifest.json');
         await loaderPromise(loader);
 
         source = new MediaSource();
@@ -40,18 +40,15 @@
         }
 
         consoleWrite('<br/>Verify track properties.');
-        testExpected('video.videoTracks.length', 1);
-        testExpected('video.audioTracks.length', 0);
-        testExpected('video.textTracks.length', 1);
         run('track = video.textTracks[0]');
-        testExpected('track.id', '4');
+        testExpected('track.id', '2');
 
         consoleWrite('<br/>Start playback and verify cues');
         run('track.mode = "showing"');
         await waitFor(video.textTracks, 'change');
 
         run('cues = track.cues');
-        testExpected('cues.length', 30);
+        testExpected('cues.length', 32);
 
         run('video.play()');
         await new Promise(resolve => cues[0].onenter = resolve);
@@ -69,7 +66,7 @@
 
 <body>
   <div>
-    Test playback of simple WebVTT subtitles in MSE.
+    Test playback of simple MP4 Timed Text subtitles in MSE.
   </div>
   <video controls></video>
 </body>
