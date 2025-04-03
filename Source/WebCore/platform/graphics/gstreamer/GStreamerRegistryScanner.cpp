@@ -521,8 +521,12 @@ void GStreamerRegistryScanner::initializeDecoders(const GStreamerRegistryScanner
     if (m_isMediaSource) {
         // This ensures WebVTT will always be supported in MSE, since it's decoded directly by WebKit,
         // so we don't actually push any WebVTT to the playback pipeline.
-        RegistryLookupResult webvttDecoderAvailable = { true, false, nullptr };
-        m_decoderCodecMap.add("wvtt"_s, webvttDecoderAvailable);
+        // Other formats that we can transcode in Textcombiner (MPEG 4/3GPP Timed Text, CEA 608)
+        // we also report as supported.
+        RegistryLookupResult textTracksAvailable = { true, false, nullptr };
+        m_decoderCodecMap.add("wvtt"_s, textTracksAvailable);
+        m_decoderCodecMap.add("tx3g"_s, textTracksAvailable);
+        m_decoderCodecMap.add("x-cea-608"_s, textTracksAvailable);
         return;
     }
 
