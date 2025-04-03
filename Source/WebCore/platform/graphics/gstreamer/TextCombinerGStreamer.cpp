@@ -93,7 +93,7 @@ void webKitTextCombinerHandleCaps(WebKitTextCombiner* combiner, GstPad* pad, con
 
         GST_DEBUG_OBJECT(combiner, "Converting CEA-608 closed captions to WebVTT.");
         auto* encoder = gst_bin_new(nullptr);
-        auto* queue = gst_element_factory_make("queue", nullptr);
+        auto* queue = gst_element_factory_make("identity", nullptr);
         auto* converter = makeGStreamerElement("ccconverter"_s);
         auto* rawCapsFilter = gst_element_factory_make("capsfilter", nullptr);
         auto* webvttEncoder = makeGStreamerElement("cea608tott"_s);
