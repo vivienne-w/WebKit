@@ -1,0 +1,70 @@
+{
+  "url": "content/counting-video-cea608simple.mp4",
+  "type": "video/mp4; codecs=\"mp4v-20\"",
+  "init": {
+    "offset": 0,
+    "size": 2227
+  },
+  "media": [
+    {
+      "offset": 2227,
+      "size": 17816
+    },
+    {
+      "offset": 20043,
+      "size": 23600
+    },
+    {
+      "offset": 43643,
+      "size": 25078
+    },
+    {
+      "offset": 68721,
+      "size": 24971
+    },
+    {
+      "offset": 93692,
+      "size": 24898
+    },
+    {
+      "offset": 118590,
+      "size": 25643
+    },
+    {
+      "offset": 144233,
+      "size": 3392
+    },
+    {
+      "offset": 147625,
+      "size": 25365
+    },
+    {
+      "offset": 172990,
+      "size": 28705
+    },
+    {
+      "offset": 201695,
+      "size": 24237
+    },
+    {
+      "offset": 225932,
+      "size": 25612
+    },
+    {
+      "offset": 251544,
+      "size": 23902
+    },
+    {
+      "offset": 275446,
+      "size": 26386
+    },
+    {
+      "offset": 301832,
+      "size": 16224
+    },
+    {
+      "offset": 318056,
+      "size": 3636
+    }
+  ]
+}

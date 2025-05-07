@@ -86,6 +86,7 @@ static GstPadProbeReturn appendPipelineAppsinkPadEventProbe(GstPad*, GstPadProbe
 static GstPadProbeReturn appendPipelineDemuxerBlackHolePadProbe(GstPad*, GstPadProbeInfo*, gpointer);
 static GstPadProbeReturn matroskademuxForceSegmentStartToEqualZero(GstPad*, GstPadProbeInfo*, void*);
 static GRefPtr<GstElement> createOptionalParserForFormat(GstBin*, const String&, const GstCaps*);
+static GRefPtr<GstElement> createOptionalEncoderForFormat(GstBin*, const String&, const GstCaps*);
 
 // Wrapper for gst_element_set_state() that emits a critical if the state change fails or is not synchronous.
 static void assertedElementSetState(GstElement* element, GstState desiredState)
@@ -285,6 +286,7 @@ GstPadProbeReturn AppendPipeline::appsrcEndOfAppendCheckerProbe(GstPadProbeInfo*
     }
 
     GST_TRACE_OBJECT(pipeline(), "Posting end-of-append task to the main thread");
+    GST_DEBUG_BIN_TO_DOT_FILE_WITH_TS(GST_BIN(m_pipeline.get()), GST_DEBUG_GRAPH_SHOW_ALL, "end-of-append");
     m_taskQueue.enqueueTask([this]() {
         handleEndOfAppend();
     });
@@ -777,6 +779,9 @@ GRefPtr<GstElement> createOptionalParserForFormat([[maybe_unused]] GstBin* bin, 
         // Necessary for: metadata filling.
         // Without this parser the codec string set on the corresponding video track will be incomplete.
         elementClass = "vp9parse"_s;
+    } else if (mediaType == "closedcaption/x-cea-608") {
+        // FIXME write comment
+        elementClass = "ccconverter"_s;
     }
 
     GST_DEBUG_OBJECT(bin, "Creating %s parser for stream with caps %" GST_PTR_FORMAT, elementClass.characters(), caps);
@@ -785,6 +790,31 @@ GRefPtr<GstElement> createOptionalParserForFormat([[maybe_unused]] GstBin* bin, 
         GST_WARNING_OBJECT(bin, "Couldn't create %s, there might be problems processing some MSE streams. "
             "Continue at your own risk and consider adding %s to your build.", elementClass.characters(), elementClass.characters());
         result = makeGStreamerElement("identity"_s, parserName);
+    }
+    return result;
+}
+
+GRefPtr<GstElement> createOptionalEncoderForFormat([[maybe_unused]] GstBin* bin, const String& encoderName, const GstCaps* caps)
+{
+    GstStructure* structure = gst_caps_get_structure(caps, 0);
+    auto mediaType = gstStructureGetName(structure);
+
+    ASCIILiteral elementClass = "identity"_s;
+
+    // FIXME scenarios we haven't tested yet:
+    //   - "Different cues can overlap." (WebVTT, 4.1 WebVTT file structure)
+    //   - SouceBuffer timestampOffset   (Media Source Extensions, 5.1 Attributes)
+    if (mediaType == "text/x-raw"_s)
+        elementClass = "webvttenc"_s;
+    else if (mediaType == "closedcaption/x-cea-608")
+        elementClass = "cea608tott"_s;
+
+    GST_DEBUG_OBJECT(bin, "Creating %s encoder for stream with caps %" GST_PTR_FORMAT, elementClass.characters(), caps);
+    GRefPtr<GstElement> result(makeGStreamerElement(elementClass, encoderName));
+    if (!result && elementClass != "identity"_s) {
+        GST_WARNING_OBJECT(bin, "Couldn't create %s, there might be problems processing some MSE streams. "
+            "Continue at your own risk and consider adding %s to your build.", elementClass.characters(), elementClass.characters());
+        result = makeGStreamerElement("identity"_s, encoderName);
     }
     return result;
 }
@@ -965,31 +995,10 @@ void AppendPipeline::Track::emplaceOptionalElementsForFormat(GstBin* bin, const 
         gst_bin_remove_many(bin, parser.get(), encoder.get(), nullptr);
     }
 
-    GstStructure* structure = gst_caps_get_structure(newCaps.get(), 0);
-    auto mediaType = gstStructureGetName(structure);
-    
     auto parserName = makeString("parser_"_s, unsafeSpan8(streamTypeToStringLower(streamType)), "_"_s, trackId);
     auto encoderName = makeString("encoder_"_s, unsafeSpan8(streamTypeToStringLower(streamType)), "_"_s, trackId);
     parser = createOptionalParserForFormat(bin, parserName, newCaps.get());
-
-    // FIXME scenarios we haven't tested yet:
-    //   - "Different cues can overlap." (WebVTT, 4.1 WebVTT file structure)
-    //   - SouceBuffer timestampOffset   (Media Source Extensions, 5.1 Attributes)
-    bool haveTextCombiner = false;
-    if (mediaType == "text/x-raw"_s || mediaType == "closedcaption/x-cea-608") {
-        GST_DEBUG_OBJECT(bin, "Creating text combiner for stream with caps %" GST_PTR_FORMAT, newCaps.get());
-        encoder = GRefPtr(webkitTextCombinerNew());
-
-        if (encoder)
-            haveTextCombiner = true;
-        else
-            GST_WARNING_OBJECT(bin, "Couldn't create text combiner, text tracks other than WebVTT likely won't work.");
-    }
-
-    if (!haveTextCombiner) {
-        GST_DEBUG_OBJECT(bin, "Creating identity encoder for stream with caps %" GST_PTR_FORMAT, newCaps.get());
-        encoder = makeGStreamerElement("identity", encoderName);
-    }
+    encoder = createOptionalEncoderForFormat(bin, encoderName, newCaps.get());
 
     ASSERT(encoder);
 
@@ -1001,15 +1010,7 @@ void AppendPipeline::Track::emplaceOptionalElementsForFormat(GstBin* bin, const 
     if (!linkingOk)
         GST_ERROR_OBJECT(bin, "linking elements failed!");
 
-    if (haveTextCombiner) {
-        GstIteratorAdaptor<GstPad> iter(GUniquePtr<GstIterator>(gst_element_iterate_sink_pads(encoder.get())));
-
-        encoderPad = *iter.begin();
-    }
-        // // encoderPad = adoptGRef(gst_element_get_static_pad(encoder.get(), "sink_0"));
-        // encoderPad = adoptGRef(gst_element_get_pad());
-    else
-        encoderPad = adoptGRef(gst_element_get_static_pad(encoder.get(), "sink"));
+    encoderPad = adoptGRef(gst_element_get_static_pad(encoder.get(), "sink"));
     entryPad = adoptGRef(gst_element_get_static_pad(parser.get(), "sink"));
 
     ASSERT(encoderPad);
