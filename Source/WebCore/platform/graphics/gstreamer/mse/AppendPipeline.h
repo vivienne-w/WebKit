@@ -59,6 +59,9 @@ public:
     SourceBufferPrivateGStreamer& sourceBufferPrivate() { return m_sourceBufferPrivate; }
     MediaPlayerPrivateGStreamerMSE* playerPrivate() { return m_playerPrivate; }
 
+    void markEndOfStream();
+    void unmarkEndOfStream();
+
 private:
 #ifndef GST_DISABLE_GST_DEBUG
     static const char * streamTypeToString(StreamType);
@@ -149,8 +152,8 @@ private:
     Thread* m_streamingThread;
 
     bool m_hasReceivedFirstInitializationSegment { false };
-    // Used only for asserting EOS events are only caused by demuxing errors.
     bool m_errorReceived { false };
+    bool m_endOfStreamReceived { false };
 
     SourceBufferPrivateGStreamer& m_sourceBufferPrivate;
     MediaPlayerPrivateGStreamerMSE* m_playerPrivate;

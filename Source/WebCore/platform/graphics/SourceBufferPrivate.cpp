@@ -313,11 +313,6 @@ void SourceBufferPrivate::provideMediaData(TrackBuffer& trackBuffer, TrackID tra
         // rather than when all samples have been enqueued.
         Ref sample = trackBuffer.decodeQueue().begin()->second;
 
-        if (sample->decodeTime() > trackBuffer.enqueueDiscontinuityBoundary()) {
-            DEBUG_LOG(LOGIDENTIFIER, "bailing early because of unbuffered gap, new sample: ", sample->decodeTime(), " >= the current discontinuity boundary: ", trackBuffer.enqueueDiscontinuityBoundary());
-            break;
-        }
-
         // Remove the sample from the decode queue now.
         trackBuffer.decodeQueue().erase(trackBuffer.decodeQueue().begin());
 
@@ -337,7 +332,7 @@ void SourceBufferPrivate::provideMediaData(TrackBuffer& trackBuffer, TrackID tra
     updateMinimumUpcomingPresentationTime(trackBuffer, trackID);
 
 #if !RELEASE_LOG_DISABLED
-    DEBUG_LOG(LOGIDENTIFIER, "enqueued ", enqueuedSamples, " samples, ", static_cast<uint64_t>(trackBuffer.decodeQueue().size()), " remaining");
+    DEBUG_LOG(LOGIDENTIFIER, "track id ", trackID, " enqueued ", enqueuedSamples, " samples, ", static_cast<uint64_t>(trackBuffer.decodeQueue().size()), " remaining");
 #endif
 
     trySignalAllSamplesInTrackEnqueued(trackBuffer, trackID);
@@ -1091,7 +1086,7 @@ bool SourceBufferPrivate::processMediaSample(SourceBufferPrivateClient& client, 
             while (nextSyncSample != trackBuffer.samples().decodeOrder().end() && Ref { nextSyncSample->second }->presentationTime() <= sample->presentationTime())
                 nextSyncSample = trackBuffer.samples().decodeOrder().findSyncSampleAfterDecodeIterator(nextSyncSample);
 
-            INFO_LOG(LOGIDENTIFIER, "Discovered out-of-order frames, from: ", nextSampleInDecodeOrder->second.get(), " to: ", (nextSyncSample == trackBuffer.samples().decodeOrder().end() ? "[end]"_s : toString(nextSyncSample->second.get())));
+            INFO_LOG(LOGIDENTIFIER, "Discovered out-of-order frames, trackID ", trackID, ", from: ", nextSampleInDecodeOrder->second.get(), " to: ", (nextSyncSample == trackBuffer.samples().decodeOrder().end() ? "[end]"_s : toString(nextSyncSample->second.get())));
             erasedSamples.addRange(nextSampleInDecodeOrder, nextSyncSample);
         } while (false);
 

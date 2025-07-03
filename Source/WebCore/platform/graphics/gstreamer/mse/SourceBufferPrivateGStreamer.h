@@ -79,6 +79,9 @@ public:
     void didReceiveAllPendingSamples();
     void appendParsingFailed();
 
+    void markEndOfStream();
+    void unmarkEndOfStream();
+
     auto& tracks() const { return m_tracks; }
 
     ContentType type() const { return m_type; }

@@ -160,6 +160,14 @@ void MediaSourcePrivateGStreamer::markEndOfStream(EndOfStreamStatus endOfStreamS
             player->setEosWithNoBuffers(true);
         }
     }
+
+    for (auto& privateSourceBuffer : m_sourceBuffers) {
+        auto sourceBuffer = downcast<SourceBufferPrivateGStreamer>(privateSourceBuffer);
+        sourceBuffer->markEndOfStream();
+    }
+
+
+
     MediaSourcePrivate::markEndOfStream(endOfStreamStatus);
 }
 

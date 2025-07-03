@@ -250,6 +250,19 @@ AppendPipeline::~AppendPipeline()
     }
 }
 
+void AppendPipeline::markEndOfStream()
+{
+    if (!m_endOfStreamReceived) {
+        GST_TRACE_OBJECT(pipeline(), "Pushing EOS event");
+
+        GstPad* appsrcPad = gst_element_get_static_pad(appsrc(), "src");
+        ASSERT(appsrcPad);
+        gst_pad_push_event(appsrcPad, gst_event_new_eos());
+
+        m_endOfStreamReceived = true;
+    }
+}
+
 void AppendPipeline::handleErrorConditionFromStreamingThread()
 {
     ASSERT(!isMainThread());
@@ -810,7 +823,42 @@ GRefPtr<GstElement> createOptionalEncoderForFormat([[maybe_unused]] GstBin* bin,
         elementClass = "cea608tott"_s;
 
     GST_DEBUG_OBJECT(bin, "Creating %s encoder for stream with caps %" GST_PTR_FORMAT, elementClass.characters(), caps);
+
     GRefPtr<GstElement> result(makeGStreamerElement(elementClass, encoderName));
+
+    // if (elementClass == "cea608tott"_s) {
+    //     GRefPtr<GstPad> sinkPad = adoptGRef(gst_element_get_static_pad(result.get(), "sink"));
+    //     guint64 probeId = gst_pad_add_probe(sinkPad.get(), GST_PAD_PROBE_TYPE_BUFFER,
+    //         [](GstPad* pad, GstPadProbeInfo* info, gpointer) -> GstPadProbeReturn {
+    //             static int count = 0;
+    //             GST_ERROR("buffer on cea608tott:sink %d", count);
+
+    //             count++;
+    //             if (count >= 300) {
+    //                 GST_ERROR("all buffers seen, pushing EOS on cea608tott:sink");
+
+    //                 GstBuffer* buffer = GST_PAD_PROBE_INFO_BUFFER(info);
+    //                 gst_pad_push(pad, buffer);
+    //                 gst_pad_push_event(pad, gst_event_new_eos());
+    //                 return GST_PAD_PROBE_DROP;
+    //             } else {
+    //                 return GST_PAD_PROBE_OK;
+    //             }
+    //         }, result.get(), nullptr);
+    //     GST_ERROR("sink pad probe installed on cea608tott (return %" G_GUINT64_FORMAT ")", probeId);
+
+    //     GRefPtr<GstPad> srcPad = adoptGRef(gst_element_get_static_pad(result.get(), "src"));
+    //     guint64 probeId2 = gst_pad_add_probe(srcPad.get(), GST_PAD_PROBE_TYPE_BUFFER,
+    //         [](GstPad*, GstPadProbeInfo* info, gpointer) -> GstPadProbeReturn {
+    //             GstBuffer* buffer = GST_PAD_PROBE_INFO_BUFFER(info);
+    //             GstMappedBuffer mappedBuffer(buffer, GST_MAP_READ);
+
+    //             GST_ERROR("buffer on cea608tott:src: %.*s", static_cast<int>(mappedBuffer.size()), reinterpret_cast<char*>(mappedBuffer.data()));
+    //             return GST_PAD_PROBE_OK;
+    //         }, result.get(), nullptr);
+    //     GST_ERROR("src pad probe installed on cea608tott (return %" G_GUINT64_FORMAT ")", probeId2);
+    // }
+
     if (!result && elementClass != "identity"_s) {
         GST_WARNING_OBJECT(bin, "Couldn't create %s, there might be problems processing some MSE streams. "
             "Continue at your own risk and consider adding %s to your build.", elementClass.characters(), elementClass.characters());

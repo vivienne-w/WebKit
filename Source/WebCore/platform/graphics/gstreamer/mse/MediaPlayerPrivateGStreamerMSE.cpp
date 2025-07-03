@@ -405,7 +405,10 @@ void MediaPlayerPrivateGStreamerMSE::updateStates()
 {
     bool isWaitingPreroll = isPipelineWaitingPreroll();
     bool shouldUpdatePlaybackState = false;
-    bool shouldBePlaying = (!m_isPaused && !isPausedByViewport() && readyState() >= MediaPlayer::ReadyState::HaveFutureData && m_playbackRatePausedState != PlaybackRatePausedState::RatePaused)
+    GST_DEBUG_OBJECT(pipeline(), "m_isPaused = %s", boolForPrinting(m_isPaused));
+    bool shouldBePlaying = (!m_isPaused && !isPausedByViewport()
+        && readyState() >= MediaPlayer::ReadyState::HaveFutureData
+        && m_playbackRatePausedState != PlaybackRatePausedState::RatePaused)
         || m_playbackRatePausedState == PlaybackRatePausedState::ShouldMoveToPlaying;
     GST_DEBUG_OBJECT(pipeline(), "shouldBePlaying = %s, m_isPipelinePlaying = %s, is seeking %s", boolForPrinting(shouldBePlaying),
         boolForPrinting(m_isPipelinePlaying), boolForPrinting(isWaitingPreroll));
