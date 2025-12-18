@@ -1,0 +1,93 @@
+<!DOCTYPE html><!-- webkit-test-runner [ SourceBufferChangeTypeEnabled=true ] -->
+<html>
+
+<head>
+  <title>media-source-changetype</title>
+  <script src="mock-media-source.js"></script>
+  <script src="../video-test.js"></script>
+  <script>
+    var source;
+    var sourceBuffer;
+    var initSegment;
+    var mediaSegment;
+
+    if (window.internals)
+      internals.initializeMockMediaSource();
+
+    window.addEventListener('load', async event => {
+      findMediaElement();
+
+      source = new MediaSource();
+      run('video.src = URL.createObjectURL(source)');
+      await waitFor(source, 'sourceopen');
+
+      consoleWrite('First segment uses type audio/mock; codecs=mock');
+      run('sourceBuffer = source.addSourceBuffer("video/mock; codecs=mock")');
+      mediaSegment = concatenateSamples([
+        makeAInit(2, [makeATrack(1, 'mock', TRACK_KIND.AUDIO)]),
+
+        //makeASample(0, 0, 2000000, 1000000, 1, SAMPLE_FLAG.SYNC, 0),
+        //makeASample(2000000, 2000000, 9000, 1000000, 1, SAMPLE_FLAG.SYNC, 0),
+        //makeASample(2009000, 2009000, 16666, 1000000, 1, SAMPLE_FLAG.SYNC, 0),
+
+        // makeASample(0, 0, 2000, 1000, 1, SAMPLE_FLAG.SYNC, 0),
+        // makeASample(2000, 2000, 9, 1000, 1, SAMPLE_FLAG.SYNC, 0),
+        // makeASample(2009, 2009, 17, 1000, 1, SAMPLE_FLAG.SYNC, 0),
+
+        makeASample(0, 0, 500, 1000, 1, SAMPLE_FLAG.SYNC, 0),
+        makeASample(500, 500, 500, 1000, 1, SAMPLE_FLAG.SYNC, 0),
+        makeASample(1000, 1000, 9, 1000, 1, SAMPLE_FLAG.SYNC, 0),
+        makeASample(1009, 1009, 9, 1000, 1, SAMPLE_FLAG.SYNC, 0),
+        makeASample(1018, 1018, 9, 1000, 1, SAMPLE_FLAG.SYNC, 0),
+
+      ]);
+      run('sourceBuffer.appendBuffer(mediaSegment)');
+      await waitFor(sourceBuffer, 'update');
+      await waitFor(sourceBuffer, 'updateend');
+
+      bufferedSamples = await internals.bufferedSamplesForTrackId(sourceBuffer, 1);
+      bufferedSamples.forEach(consoleWrite);
+
+      if (sourceBuffer.changeType == undefined) {
+        consoleWrite("SourceBuffer.changeType is undefined");
+        endTest();
+      }
+
+      //consoleWrite('Second segment uses type audio/mock; codecs=kcom');
+      //run('sourceBuffer.changeType("video/mock; codecs=kcom")');
+      mediaSegment = concatenateSamples([
+        //makeAInit(2.0, [makeATrack(1, 'B', TRACK_KIND.AUDIO)]),
+
+        // makeASample(0, 0, 1500000, 1000000, 1, SAMPLE_FLAG.SYNC, 1),
+        // makeASample(1500000, 1500000, 9297, 1000000, 1, SAMPLE_FLAG.SYNC, 1),
+        // makeASample(1509297, 1509297, 23220, 1000000, 1, SAMPLE_FLAG.SYNC, 1),
+
+        // makeASample(0, 0, 1500, 1000, 1, SAMPLE_FLAG.SYNC, 1),
+        // makeASample(1500, 1500, 10, 1000, 1, SAMPLE_FLAG.SYNC, 1),
+        // makeASample(1510, 1510, 23, 1000, 1, SAMPLE_FLAG.SYNC, 1),
+
+        makeASample(0, 0, 500, 1000, 1, SAMPLE_FLAG.SYNC, 1),
+        makeASample(500, 500, 10, 1000, 1, SAMPLE_FLAG.SYNC, 1),
+        makeASample(510, 510, 23, 1000, 1, SAMPLE_FLAG.SYNC, 1),
+      ]);
+      run('sourceBuffer.timestampOffset = 0.5')
+      run('sourceBuffer.appendBuffer(mediaSegment)');
+      await waitFor(sourceBuffer, 'update');
+      await waitFor(sourceBuffer, 'updateend');
+
+      bufferedSamples = await internals.bufferedSamplesForTrackId(sourceBuffer, 1);
+      bufferedSamples.forEach(consoleWrite);
+
+      //run('sourceBuffer.timestampOffset = 1')
+      //run('sourceBuffer.timestampOffset = 1.5')
+
+      endTest();
+    });
+  </script>
+</head>
+
+<body onload="runTest().catch(failTest)">
+  <video></video>
+</body>
+
+</html>
