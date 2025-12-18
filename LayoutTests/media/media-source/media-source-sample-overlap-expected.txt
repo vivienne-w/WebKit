@@ -1,0 +1,22 @@
+
+RUN(video.src = URL.createObjectURL(source))
+EVENT(sourceopen)
+RUN(sourceBuffer = source.addSourceBuffer("video/mock; codecs=mock"))
+RUN(sourceBuffer.appendBuffer(mediaSegment))
+EVENT(update)
+EVENT(updateend)
+{PTS({0/1000 = 0.000000}), DTS({0/1000 = 0.000000}), duration({9/1000 = 0.009000}), flags(1), generation(0)}
+{PTS({9/1000 = 0.009000}), DTS({9/1000 = 0.009000}), duration({9/1000 = 0.009000}), flags(1), generation(0)}
+{PTS({18/1000 = 0.018000}), DTS({18/1000 = 0.018000}), duration({9/1000 = 0.009000}), flags(1), generation(0)}
+{PTS({27/1000 = 0.027000}), DTS({27/1000 = 0.027000}), duration({9/1000 = 0.009000}), flags(1), generation(0)}
+{PTS({36/1000 = 0.036000}), DTS({36/1000 = 0.036000}), duration({9/1000 = 0.009000}), flags(1), generation(0)}
+RUN(sourceBuffer.appendBuffer(mediaSegment))
+EVENT(update)
+EVENT(updateend)
+{PTS({0/1000 = 0.000000}), DTS({0/1000 = 0.000000}), duration({9/1000 = 0.009000}), flags(1), generation(0)}
+{PTS({9/1000 = 0.009000}), DTS({9/1000 = 0.009000}), duration({9/1000 = 0.009000}), flags(1), generation(0)}
+{PTS({17/1000 = 0.017000}), DTS({17/1000 = 0.017000}), duration({10/1000 = 0.010000}), flags(1), generation(1)}
+{PTS({27/1000 = 0.027000}), DTS({27/1000 = 0.027000}), duration({10/1000 = 0.010000}), flags(1), generation(1)}
+{PTS({37/1000 = 0.037000}), DTS({37/1000 = 0.037000}), duration({10/1000 = 0.010000}), flags(1), generation(1)}
+END OF TEST
+
