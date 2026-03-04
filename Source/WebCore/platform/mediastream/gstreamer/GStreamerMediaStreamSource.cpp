@@ -616,7 +616,7 @@ private:
             videoCounter++;
 
             m_dumpPipeline = gst_parse_launch(
-                "appsrc name=dumpsrc ! h264parse name=dumpparse ! video/x-h264,stream-format=byte-stream ! filesink name=dumpsink location=/home/vivienne/blacknut-minibrowser.h264",
+                "appsrc name=dumpsrc ! video/x-h264,stream-format=avc ! mp4mux name=dumpmux ! filesink name=dumpsink location=/home/vivienne/blacknut-minibrowser.mp4",
                 nullptr);
             m_dumpSrc = gst_bin_get_by_name(GST_BIN(m_dumpPipeline.get()), "dumpsrc");
             GST_DEBUG_OBJECT(m_dumpSrc.get(), "=//= Setup");
