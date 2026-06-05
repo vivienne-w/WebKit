@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>media-source-smooth-switch-repro1</title>
+    <script src="mock-media-source.js"></script>
+    <script src="../video-test.js"></script>
+    <script src="smooth-switch-test.js"></script>
+    <script>
+    smoothSwitchTest(async () => {
+
+        const frameRate = 24;
+        const timescale = 1000;
+        function sampleRun(sampleNoStart, offset, sampleCount, gopLength, generation) {
+            let samples = [];
+            for (let sampleNo = sampleNoStart; sampleNo < sampleNoStart + sampleCount; sampleNo++) {
+                const isSync = (sampleNo - sampleNoStart) % gopLength == 0;
+                const dts = Math.floor(sampleNo * timescale / frameRate) + offset;
+                const dtsNextSample = Math.floor((sampleNo + 1) * timescale / frameRate) + offset;
+                samples.push(makeASample(dts, dts, dtsNextSample - dts, timescale, TRACK_ID, isSync ? 1 : 0, generation));
+            }
+            return concatenateSamples(samples);
+        }
+
+        run('internals.setMaximumQueueDepthForTrackID(sourceBuffer, TRACK_ID, 0)');
+        samplesGen1 = sampleRun(0, 0, 48, 48, 1);
+        run('sourceBuffer.appendBuffer(samplesGen1)');
+        await waitFor(sourceBuffer, 'updateend');
+        run('internals.setMaximumQueueDepthForTrackID(sourceBuffer, TRACK_ID, 44)');
+        samplesGen2 = sampleRun(0, 1000, 48, 48, 2);
+        run('sourceBuffer.appendBuffer(samplesGen2)');
+        await waitFor(sourceBuffer, 'updateend');
+        run('internals.setMaximumQueueDepthForTrackID(sourceBuffer, TRACK_ID, 47)');
+        samplesGen3 = sampleRun(0, 1500, 48, 48, 3);
+        run('sourceBuffer.appendBuffer(samplesGen3)');
+        await waitFor(sourceBuffer, 'updateend');
+        samplesGen4 = sampleRun(0, 1300, 48, 48, 4);
+        run('sourceBuffer.appendBuffer(samplesGen4)');
+        await waitFor(sourceBuffer, 'updateend');
+        run('internals.setMaximumQueueDepthForTrackID(sourceBuffer, TRACK_ID, 71)');
+
+        compactMockSampleLines(await internals.enqueuedSamplesForTrackID(sourceBuffer, TRACK_ID)).forEach(consoleWrite);
+    });
+    </script>
+</head>
+<body>
+    <video controls></video>
+</body>
+</html>

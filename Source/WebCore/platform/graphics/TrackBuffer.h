@@ -70,7 +70,8 @@ public:
     bool reenqueueMediaForTime(const MediaTime&, bool isEnded = false);
     MediaTime findSeekTimeForTargetTime(const MediaTime& targetTime, const MediaTime& negativeThreshold, const MediaTime& positiveThreshold);
     int64_t removeCodedFrames(const MediaTime& start, const MediaTime& end, const MediaTime& currentTime);
-    PlatformTimeRanges removeSamples(const DecodeOrderSampleMap::MapType&, ASCIILiteral);
+    PlatformTimeRanges removeSamplesFromMap(const DecodeOrderSampleMap::MapType&, ASCIILiteral);
+    void removeSamplesFromDecodeQueue(const DecodeOrderSampleMap::MapType&, ASCIILiteral);
     int64_t codedFramesIntervalSize(const MediaTime& start, const MediaTime& end);
 
     RefPtr<MediaSample> nextSample();
@@ -145,6 +146,8 @@ private:
     // currently MSE only).
     bool isAcceptableEnqueueGap(const MediaTime& fromTime, const MediaTime& toTime) const;
 
+    MediaTime futureDiscontinuityBoundary() const;
+
     const DecodeOrderSampleMap::MapType& decodeQueue() const LIFETIME_BOUND { return m_decodeQueue; }
     DecodeOrderSampleMap::MapType& decodeQueue() LIFETIME_BOUND { return m_decodeQueue; }
     void updateMinimumUpcomingPresentationTime();
@@ -192,6 +195,12 @@ private:
     MediaTime m_enqueueDiscontinuityBoundary;
     MediaTime m_lastEnqueueDecodeEnd;
     IsAcceptableEnqueueGapFn m_isAcceptableEnqueueGap;
+
+
+    // The decode key of the sync sample of the latest appeneded GOP.
+    DecodeOrderSampleMap::KeyType m_groupLeaderDecodeKey { MediaTime::invalidTime(), MediaTime::invalidTime() };
+    // Whether samples of the latest appended GOP need to be withheld from the decodeQueue at this point.
+    bool m_isWithholdingSamples { false };
 
     MediaTime m_roundedTimestampOffset { MediaTime::invalidTime() };
 

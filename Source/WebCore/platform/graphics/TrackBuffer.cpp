@@ -135,6 +135,48 @@ void TrackBuffer::addSample(MediaSample& sample)
 
     m_samples.addSample(sample);
 
+    DecodeOrderSampleMap::KeyType decodeKey = { sample.decodeTime(), sample.presentationTime() };
+
+    if (sample.isSync()) {
+        m_groupLeaderDecodeKey = decodeKey;
+        if (m_lastEnqueuedDecodeKey.first.isInvalid() || decodeKey > m_lastEnqueuedDecodeKey) {
+            ALWAYS_LOG(LOGIDENTIFIER, "Smooth switch: This GOP can be forwarded to the decode queue.");
+            m_isWithholdingSamples = false;
+        } else {
+            ALWAYS_LOG(LOGIDENTIFIER, "Smooth switch: This GOP will be withheld from the decode queue, at least for now. Future discontinuity boundary: ", futureDiscontinuityBoundary().toDouble());
+            m_isWithholdingSamples = true;
+        }
+    }
+
+    // TODO: what about when the boundary is invalid?
+    if (!sample.isSync() && m_isWithholdingSamples && futureDiscontinuityBoundary().isValid() && sample.decodeTime() > futureDiscontinuityBoundary()) {
+        m_isWithholdingSamples = false;
+
+        // Complete smooth switch, more expensive case: for playback to be smooth the decoder will have to
+        // process new samples as non-displaying after already decoding old samples for the same time range.
+        ALWAYS_LOG(LOGIDENTIFIER, "Smooth switch: Completing with non-displaying samples (slow case). "
+            "Is decode queue empty: ", m_decodeQueue.empty(), ". New sample: ", sample);
+
+        auto newGopStart = m_samples.decodeOrder().findSyncSamplePriorToDecodeKey(decodeKey);
+        auto newGopDecodeKey = newGopStart->first;
+
+        // Delete everything remaining in the decodeQueue that will be replaced by the new GOP. Decoding those
+        // samples would be pointless since we already have replacements for the same time range.
+        // TODO: Don't erase to the end, only up to the future discontinuity boundary. Write a test to verify this.
+        m_decodeQueue.erase(m_decodeQueue.lower_bound(newGopDecodeKey), m_decodeQueue.end());
+
+        // Insert the dependent samples of the new GOP into the decode queue.
+        for (auto it = newGopStart; it != m_samples.decodeOrder().end() && it->first < decodeKey; ++it) {
+            Ref<MediaSample> dependentSample = it->second;
+            bool needsNonDisplaying = dependentSample->presentationTime() < m_highestEnqueuedPresentationTime;
+            ALWAYS_LOG(LOGIDENTIFIER, "Inserting dependent sample with PTS=", dependentSample->presentationTime().toDouble(), " as ",
+                needsNonDisplaying ? "non-displaying" : "displaying", " sample");
+            Ref<MediaSample> dependentSampleToInsert = needsNonDisplaying ?
+                dependentSample->createNonDisplayingCopy() : dependentSample;
+            m_decodeQueue.insert({ it->first, dependentSampleToInsert });
+        }
+    }
+
     // Note: The terminology here is confusing: "enqueuing" means providing a frame to the inner media framework.
     // First, frames are inserted in the decode queue; later, at the end of the append some of the frames in the
     // decode may be "enqueued" (sent to the inner media framework) in `provideMediaData()`.
@@ -145,17 +187,31 @@ void TrackBuffer::addSample(MediaSample& sample)
     // Note that adding a frame to the decode queue is no guarantee that it will be actually enqueued at that point.
     // If the frame is after the discontinuity boundary, the enqueueing algorithm will hold it there until samples
     // with earlier timestamps are enqueued. The decode queue is not FIFO, but rather an ordered map.
-    DecodeOrderSampleMap::KeyType decodeKey(sample.decodeTime(), sample.presentationTime());
-    if (lastEnqueuedDecodeKey().first.isInvalid() || decodeKey > lastEnqueuedDecodeKey()) {
-        auto result = decodeQueue().insert(DecodeOrderSampleMap::MapType::value_type(decodeKey, sample));
+    if (!m_isWithholdingSamples && (lastEnqueuedDecodeKey().first.isInvalid() || decodeKey > lastEnqueuedDecodeKey())) {
+        // Due to a previous smooth switch, there may remain samples in the decode queue that are no longer part
+        // of the official samples in the track. If the new sample overlaps with such a sample, it must be erased.
+        DEBUG_LOG(LOGIDENTIFIER, "Inserting sample in decodeQueue with decodeKey: DTS=", decodeKey.first.toDouble(), " PTS=", decodeKey.second.toDouble());
+        auto result = decodeQueue().insert_or_assign(decodeKey, sample);
+        if (!result.second)
+            ALWAYS_LOG(LOGIDENTIFIER, "Overwrote sample from previous smooth switch with identical decodeKey: DTS=", decodeKey.first.toDouble());
         auto it = result.first;
+
         if (it == decodeQueue().begin())
             m_minimumEnqueuedPresentationTime = sample.presentationTime();
         else {
             m_minimumEnqueuedPresentationTime = std::min(m_minimumEnqueuedPresentationTime, sample.presentationTime());
-            Ref previousSample = (--it)->second;
+            Ref previousSample = std::prev(it)->second;
             if (sample.presentationTime() < previousSample->presentationTime())
                 m_hasOutOfOrderFrames = true;
+        }
+
+        if (sample.isSync()) {
+            // Delete any following samples in the decode queue that the new sample makes undecodable.
+            ++it;
+            while (it != decodeQueue().end() && !protect(it->second)->isSync()) {
+                ALWAYS_LOG(LOGIDENTIFIER, "Erasing newly orphaned sample from decodeQueue: ", protect(it->second).get());
+                it = decodeQueue().erase(it);
+            }
         }
 
         // Track reorder depth in decode order. We can't publish a trustworthy
@@ -217,7 +273,8 @@ RefPtr<MediaSample> TrackBuffer::nextSample()
     if (highestEnqueuedPresentationTime().isInvalid() || samplePresentationEnd > highestEnqueuedPresentationTime())
         setHighestEnqueuedPresentationTime(samplePresentationEnd);
 
-    setLastEnqueuedDecodeKey({ sample->decodeTime(), sample->presentationTime() });
+    DecodeOrderSampleMap::KeyType decodeKey { sample->decodeTime(), sample->presentationTime() };
+    setLastEnqueuedDecodeKey(decodeKey);
     auto decodeEnd = std::max(sample->decodeTime() + sample->duration(), samplePresentationEnd);
     m_lastEnqueueDecodeEnd = decodeEnd;
     setEnqueueDiscontinuityBoundary(decodeEnd + PlatformTimeRanges::timeFudgeFactor());
@@ -234,6 +291,16 @@ RefPtr<MediaSample> TrackBuffer::nextSample()
             m_minimumEnqueuedPresentationTime = sample->presentationTime();
             break;
         }
+    }
+
+    ALWAYS_LOG(LOGIDENTIFIER, "Enqueued sample DTS=", decodeKey.first.toDouble(), " PTS=", decodeKey.second.toDouble(),
+        " Leader DTS=", m_groupLeaderDecodeKey.first.toDouble(), " PTS=", m_groupLeaderDecodeKey.second.toDouble(),
+        " m_isWithholdingSamples: ", m_isWithholdingSamples, " isSync: ", sample->isSync());
+    if (m_groupLeaderDecodeKey.first.isValid() && !m_isWithholdingSamples && sample->isSync() && decodeKey > m_groupLeaderDecodeKey) {
+        // Prevent future non-sync samples of the currently appended GOP from mixing with the unrelated GOP just enqueued now.
+        // Test case: LayoutTests/media/media-source/media-source-smooth-switch-sandwiched-replacement.html
+        ALWAYS_LOG(LOGIDENTIFIER, "Smooth switch: The GOP currently being appended needs to be withheld again.");
+        m_isWithholdingSamples = true;
     }
 
     return sample;
@@ -377,7 +444,7 @@ MediaTime TrackBuffer::findSeekTimeForTargetTime(const MediaTime& targetTime, co
     return abs(targetTime - futureSeekTime) < abs(targetTime - pastSeekTime) ? futureSeekTime : pastSeekTime;
 }
 
-PlatformTimeRanges TrackBuffer::removeSamples(const DecodeOrderSampleMap::MapType& samples, ASCIILiteral logPrefix)
+PlatformTimeRanges TrackBuffer::removeSamplesFromMap(const DecodeOrderSampleMap::MapType& samples, ASCIILiteral logPrefix)
 {
 #if !RELEASE_LOG_DISABLED
     auto logId = Logger::LogSiteIdentifier(logClassName(), logPrefix, logIdentifier());
@@ -393,19 +460,14 @@ PlatformTimeRanges TrackBuffer::removeSamples(const DecodeOrderSampleMap::MapTyp
 #endif
     PlatformTimeRanges erasedRanges;
     for (const auto& sampleIt : samples) {
-        const DecodeOrderSampleMap::KeyType& decodeKey = sampleIt.first;
-
         Ref sample = sampleIt.second;
 
 #if !RELEASE_LOG_DISABLED
-        DEBUG_LOG_IF(m_logger, logId, "removing sample ", sampleIt.second.get());
+        DEBUG_LOG_IF(m_logger, logId, "removing sample from the sample map ", sampleIt.second.get());
 #endif
 
         // Remove the erased samples from the TrackBuffer sample map.
         m_samples.removeSample(sample);
-
-        // Also remove the erased samples from the TrackBuffer decodeQueue.
-        m_decodeQueue.erase(decodeKey);
 
         auto startTime = sample->presentationTime();
         auto endTime = startTime + sample->duration();
@@ -477,9 +539,28 @@ PlatformTimeRanges TrackBuffer::removeSamples(const DecodeOrderSampleMap::MapTyp
         DEBUG_LOG_IF(m_logger, logId, "removed ", bytesRemoved, ", start = ", earliestSample, ", end = ", latestSample);
 #endif
 
-    updateMinimumUpcomingPresentationTime();
-
     return erasedRanges;
+}
+
+void TrackBuffer::removeSamplesFromDecodeQueue(const DecodeOrderSampleMap::MapType& samples, ASCIILiteral logPrefix)
+{
+#if !RELEASE_LOG_DISABLED
+    auto logId = Logger::LogSiteIdentifier(logClassName(), logPrefix, logIdentifier());
+#else
+    UNUSED_PARAM(logPrefix);
+#endif
+
+    for (const auto& sampleIt : samples) {
+        const DecodeOrderSampleMap::KeyType& decodeKey = sampleIt.first;
+
+#if !RELEASE_LOG_DISABLED
+        DEBUG_LOG_IF(m_logger, logId, "removing sample from decode queue ", sampleIt.second.get());
+#endif
+
+        m_decodeQueue.erase(decodeKey);
+    }
+
+    updateMinimumUpcomingPresentationTime();
 }
 
 [[nodiscard]] static bool decodeTimeComparator(const PresentationOrderSampleMap::MapType::value_type& a, const PresentationOrderSampleMap::MapType::value_type& b)
@@ -494,7 +575,7 @@ int64_t TrackBuffer::removeCodedFrames(const MediaTime& startIn, const MediaTime
     ASSERT(end.isValid());
     // 3.5.9 Coded Frame Removal Algorithm
     // https://dvcs.w3.org/hg/html-media/raw-file/tip/media-source/media-source.html#sourcebuffer-coded-frame-removal
-    
+
     // 3.1. Let remove end timestamp be the current value of duration
     // 3.2 If this track buffer has a random access point timestamp that is greater than or equal to end, then update
     // remove end timestamp to that random access point timestamp.
@@ -543,7 +624,8 @@ int64_t TrackBuffer::removeCodedFrames(const MediaTime& startIn, const MediaTime
 
     DecodeOrderSampleMap::MapType erasedSamples(removeDecodeStart, removeDecodeEnd);
 
-    PlatformTimeRanges erasedRanges = removeSamples(erasedSamples, "removeCodedFrames"_s);
+    PlatformTimeRanges erasedRanges = removeSamplesFromMap(erasedSamples, "removeCodedFrames"_s);
+    removeSamplesFromDecodeQueue(erasedSamples, "removeCodedFrames"_s);
 
     // Only force the TrackBuffer to re-enqueue if the removed ranges overlap with enqueued and possibly
     // not yet displayed samples.
@@ -667,6 +749,25 @@ void TrackBuffer::clearDecodeQueue()
     // decode-queue flush (same stream, same codec config).
     m_maxPresentationTimeSeenInDecodeOrder = MediaTime::invalidTime();
     m_samplesSinceMaxPresentationTime = 0;
+}
+
+MediaTime TrackBuffer::futureDiscontinuityBoundary() const
+{
+    if (m_enqueueDiscontinuityBoundary.isInvalid() || m_lastEnqueueDecodeEnd.isInvalid())
+        return MediaTime::invalidTime();
+
+    // Find the decode time of the first frame that would not be enqueued by simulating the same logic as nextSample().
+    // It is safe to cache this value as the decode queue will only be modified once we exit the the smooth switch state.
+    MediaTime enqueueDiscontinuityBoundary = m_enqueueDiscontinuityBoundary;
+    MediaTime lastEnqueueDecodeEnd = m_lastEnqueueDecodeEnd;
+    for (auto &s : m_decodeQueue) {
+        Ref<MediaSample> sample = s.second;
+        if (s.first.first > enqueueDiscontinuityBoundary && (!m_isAcceptableEnqueueGap || !m_isAcceptableEnqueueGap(lastEnqueueDecodeEnd, sample->decodeTime())))
+            break;
+        lastEnqueueDecodeEnd = std::max(sample->decodeTime() + sample->duration(), sample->presentationEndTime());
+        enqueueDiscontinuityBoundary = lastEnqueueDecodeEnd + PlatformTimeRanges::timeFudgeFactor();
+    }
+    return enqueueDiscontinuityBoundary;
 }
 
 void TrackBuffer::setRoundedTimestampOffset(const MediaTime& time, uint32_t timeScale, const MediaTime& roundingMargin)
