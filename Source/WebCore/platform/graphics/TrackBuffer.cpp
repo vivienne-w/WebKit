@@ -168,9 +168,11 @@ void TrackBuffer::addSample(MediaSample& sample)
         // Insert the dependent samples of the new GOP into the decode queue.
         for (auto it = newGopStart; it != m_samples.decodeOrder().end() && it->first < decodeKey; ++it) {
             Ref<MediaSample> dependentSample = it->second;
+            // TODO: is this entirely accurate? e.g. sample duration is not accounted for!
+            //       (How is non-/displaying usually assigned for paritially overlapping samples?)
             bool needsNonDisplaying = dependentSample->presentationTime() < m_highestEnqueuedPresentationTime;
             ALWAYS_LOG(LOGIDENTIFIER, "Inserting dependent sample with PTS=", dependentSample->presentationTime().toDouble(), " as ",
-                needsNonDisplaying ? "non-displaying" : "displaying", " sample");
+                needsNonDisplaying ? "non-displaying" : "displaying", " sample, based on highest enQd PTS: ", m_highestEnqueuedPresentationTime);
             Ref<MediaSample> dependentSampleToInsert = needsNonDisplaying ?
                 dependentSample->createNonDisplayingCopy() : dependentSample;
             m_decodeQueue.insert({ it->first, dependentSampleToInsert });

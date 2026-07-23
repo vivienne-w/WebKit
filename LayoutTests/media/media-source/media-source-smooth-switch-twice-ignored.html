@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>media-source-smooth-switch-simple</title>
+  <script src="mock-media-source.js"></script>
+  <script src="../video-test.js"></script>
+  <script src="smooth-switch-test.js"></script>
+  <script>
+    smoothSwitchTest(async () => {
+      run('internals.setMaximumQueueDepthForTrackID(sourceBuffer, TRACK_ID, 7)');
+      await sourceBufferAppend(1, [[0, 8]]);
+      await showEnqueuedSamples();
+
+      await sourceBufferAppend(2, [[2, 10]]);
+      run('internals.setMaximumQueueDepthForTrackID(sourceBuffer, TRACK_ID, 8)');
+      consoleWrite("<br>Samples of the second generation must be enqueued as non-displaying.")
+      await showEnqueuedSamples();
+
+      await sourceBufferAppend(3, [[4, 9]]);
+      await showBufferedSamples();
+      run('internals.setMaximumQueueDepthForTrackID(sourceBuffer, TRACK_ID, QUEUE_DEPTH_UNLIMITED)');
+      consoleWrite("<br>The generation 3 GOP reaches past the latest enqueued time, but not as far as generation 2, so we should not enqueue it.");
+      await showEnqueuedSamples();
+      await showBufferedSamples();
+    });
+  </script>
+</head>
+
+<body>
+  <video controls></video>
+</body>
+
+</html>

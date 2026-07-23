@@ -39,6 +39,8 @@
         run('internals.setMaximumQueueDepthForTrackID(sourceBuffer, TRACK_ID, 71)');
 
         compactMockSampleLines(await internals.enqueuedSamplesForTrackID(sourceBuffer, TRACK_ID)).forEach(consoleWrite);
+        await showEnqueuedSamples();
+        await showBufferedSamples();
     });
     </script>
 </head>
