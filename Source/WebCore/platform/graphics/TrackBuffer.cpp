@@ -162,8 +162,8 @@ void TrackBuffer::addSample(MediaSample& sample)
 
         // Delete everything remaining in the decodeQueue that will be replaced by the new GOP. Decoding those
         // samples would be pointless since we already have replacements for the same time range.
-        // TODO: Don't erase to the end, only up to the future discontinuity boundary. Write a test to verify this.
-        m_decodeQueue.erase(m_decodeQueue.lower_bound(newGopDecodeKey), m_decodeQueue.end());
+        // TODO: Write a test to verify this. Double check the comment.
+        m_decodeQueue.erase(m_decodeQueue.lower_bound(newGopDecodeKey), m_decodeQueue.lower_bound({futureDiscontinuityBoundary(), MediaTime::negativeInfiniteTime()}));
 
         // Insert the dependent samples of the new GOP into the decode queue.
         for (auto it = newGopStart; it != m_samples.decodeOrder().end() && it->first < decodeKey; ++it) {
@@ -205,13 +205,22 @@ void TrackBuffer::addSample(MediaSample& sample)
                 m_hasOutOfOrderFrames = true;
         }
 
-        if (sample.isSync()) {
-            // Delete any following samples in the decode queue that the new sample makes undecodable.
-            ++it;
-            while (it != decodeQueue().end() && !protect(it->second)->isSync()) {
-                ALWAYS_LOG(LOGIDENTIFIER, "Erasing newly orphaned sample from decodeQueue: ", protect(it->second).get());
-                it = decodeQueue().erase(it);
+        if (!sample.isSync()) {
+            // Find the previous sync sample in the decode queue, if any.
+            auto prevSyncSample = std::make_reverse_iterator(it);
+            while (prevSyncSample != decodeQueue().rend() && !protect(prevSyncSample->second)->isSync())
+                ++prevSyncSample;
+            if (prevSyncSample != decodeQueue().rend() && prevSyncSample->first != m_groupLeaderDecodeKey) {
+                ALWAYS_LOG(LOGIDENTIFIER, "Erasing stale interleaved sync frame with DTS=", prevSyncSample->first.first.toDouble(), " current leader DTS=", m_groupLeaderDecodeKey.first.toDouble());
+                decodeQueue().erase(prevSyncSample->first);
             }
+        }
+
+        // Delete any following samples in the decode queue that the new sample makes undecodable.
+        ++it;
+        while (it != decodeQueue().end() && !protect(it->second)->isSync()) {
+            ALWAYS_LOG(LOGIDENTIFIER, "Erasing newly orphaned sample from decodeQueue: ", protect(it->second).get());
+            it = decodeQueue().erase(it);
         }
 
         // Track reorder depth in decode order. We can't publish a trustworthy
