@@ -20,6 +20,7 @@
       await sourceBufferAppend(3, [[4, 12]]);
       run('internals.setMaximumQueueDepthForTrackID(sourceBuffer, TRACK_ID, QUEUE_DEPTH_UNLIMITED)');
       consoleWrite("<br>Samples of the third generation must also be enqueued as non-displaying, but only up to the end of the generation 1 GOP.");
+      consoleWrite("No more samples of the second generation must be enqueued, since they are no longer useful to catch-up the decoder.");
       await showEnqueuedSamples();
       await showBufferedSamples();
     });

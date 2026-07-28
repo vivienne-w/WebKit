@@ -140,7 +140,13 @@ void TrackBuffer::addSample(MediaSample& sample)
     if (sample.isSync()) {
         m_groupLeaderDecodeKey = decodeKey;
         if (m_lastEnqueuedDecodeKey.first.isInvalid() || decodeKey > m_lastEnqueuedDecodeKey) {
-            ALWAYS_LOG(LOGIDENTIFIER, "Smooth switch: This GOP can be forwarded to the decode queue.");
+            // FIXME: what should happen with invalid highest PTS? when does that occur?
+            if (m_isCatchingUpForSmoothSwitch && highestEnqueuedPresentationTime().isValid() && sample.presentationTime() < highestEnqueuedPresentationTime()) {
+                ALWAYS_LOG(LOGIDENTIFIER, "Smooth switch: New GOP during catch-up, discarding previous catch-up samples");
+                m_decodeQueue.erase(m_decodeQueue.begin(), m_decodeQueue.upper_bound(decodeKey));
+            } else
+                ALWAYS_LOG(LOGIDENTIFIER, "Smooth switch: This GOP can be forwarded to the decode queue.");
+
             m_isWithholdingSamples = false;
         } else {
             ALWAYS_LOG(LOGIDENTIFIER, "Smooth switch: This GOP will be withheld from the decode queue, at least for now. Future discontinuity boundary: ", futureDiscontinuityBoundary().toDouble());
@@ -279,7 +285,8 @@ RefPtr<MediaSample> TrackBuffer::nextSample()
     Ref sample = decodeQueue().begin()->second;
 
     if (sample->decodeTime() > enqueueDiscontinuityBoundary()
-        && (!m_isAcceptableEnqueueGap || !m_isAcceptableEnqueueGap(m_lastEnqueueDecodeEnd, sample->decodeTime()))) {
+        && (!m_isAcceptableEnqueueGap || !m_isAcceptableEnqueueGap(m_lastEnqueueDecodeEnd, sample->decodeTime()))
+        && (!m_isCatchingUpForSmoothSwitch || !sample->isSync() || sample->presentationTime() > highestEnqueuedPresentationTime())) {
         WARNING_LOG(LOGIDENTIFIER, "bailing early because of unbuffered gap, new sample DTS: ", sample->decodeTime(), " >= the current discontinuity boundary: ", enqueueDiscontinuityBoundary());
         return { };
     }
