@@ -201,6 +201,8 @@ private:
     DecodeOrderSampleMap::KeyType m_groupLeaderDecodeKey { MediaTime::invalidTime(), MediaTime::invalidTime() };
     // Whether samples of the latest appended GOP need to be withheld from the decodeQueue at this point.
     bool m_isWithholdingSamples { false };
+    // Whether we are currently enqueueing non-displaying samples for a smooth switch, to allow the decoder to catch up.
+    bool m_isCatchingUpForSmoothSwitch { false };
 
     MediaTime m_roundedTimestampOffset { MediaTime::invalidTime() };
 

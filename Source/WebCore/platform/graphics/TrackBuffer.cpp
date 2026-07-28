@@ -177,6 +177,11 @@ void TrackBuffer::addSample(MediaSample& sample)
                 dependentSample->createNonDisplayingCopy() : dependentSample;
             m_decodeQueue.insert({ it->first, dependentSampleToInsert });
         }
+
+        // Enter a catch-up state until we are done enqueueing non-displaying samples.
+        // Being aware of this state is important for correctly handling a second smooth switch that occurs
+        // while we are still catching up.
+        m_isCatchingUpForSmoothSwitch = true;
     }
 
     // Note: The terminology here is confusing: "enqueuing" means providing a frame to the inner media framework.
@@ -190,10 +195,12 @@ void TrackBuffer::addSample(MediaSample& sample)
     // If the frame is after the discontinuity boundary, the enqueueing algorithm will hold it there until samples
     // with earlier timestamps are enqueued. The decode queue is not FIFO, but rather an ordered map.
     if (!m_isWithholdingSamples && (lastEnqueuedDecodeKey().first.isInvalid() || decodeKey > lastEnqueuedDecodeKey())) {
+        bool needsNonDisplaying = m_isCatchingUpForSmoothSwitch && sample.presentationTime() < m_highestEnqueuedPresentationTime;
+        DEBUG_LOG(LOGIDENTIFIER, "Inserting ", needsNonDisplaying ? "non-" : "", "displaying sample in decodeQueue with decodeKey: DTS=", decodeKey.first.toDouble(), " PTS=", decodeKey.second.toDouble());
+
         // Due to a previous smooth switch, there may remain samples in the decode queue that are no longer part
         // of the official samples in the track. If the new sample overlaps with such a sample, it must be erased.
-        DEBUG_LOG(LOGIDENTIFIER, "Inserting sample in decodeQueue with decodeKey: DTS=", decodeKey.first.toDouble(), " PTS=", decodeKey.second.toDouble());
-        auto result = decodeQueue().insert_or_assign(decodeKey, sample);
+        auto result = decodeQueue().insert_or_assign(decodeKey, needsNonDisplaying ? sample.createNonDisplayingCopy() : Ref(sample));
         if (!result.second)
             ALWAYS_LOG(LOGIDENTIFIER, "Overwrote sample from previous smooth switch with identical decodeKey: DTS=", decodeKey.first.toDouble());
         auto it = result.first;
@@ -281,8 +288,14 @@ RefPtr<MediaSample> TrackBuffer::nextSample()
     decodeQueue().erase(decodeQueue().begin());
 
     MediaTime samplePresentationEnd = sample->presentationEndTime();
-    if (highestEnqueuedPresentationTime().isInvalid() || samplePresentationEnd > highestEnqueuedPresentationTime())
+    if (highestEnqueuedPresentationTime().isInvalid() || samplePresentationEnd > highestEnqueuedPresentationTime()) {
         setHighestEnqueuedPresentationTime(samplePresentationEnd);
+
+        if (m_isCatchingUpForSmoothSwitch) {
+            ALWAYS_LOG(LOGIDENTIFIER, "Smooth switch: Completed catch-up with first displaying sample, PTS=", sample->presentationTime().toDouble());
+            m_isCatchingUpForSmoothSwitch = false;
+        }
+    }
 
     DecodeOrderSampleMap::KeyType decodeKey { sample->decodeTime(), sample->presentationTime() };
     setLastEnqueuedDecodeKey(decodeKey);
@@ -312,6 +325,7 @@ RefPtr<MediaSample> TrackBuffer::nextSample()
         // Test case: LayoutTests/media/media-source/media-source-smooth-switch-sandwiched-replacement.html
         ALWAYS_LOG(LOGIDENTIFIER, "Smooth switch: The GOP currently being appended needs to be withheld again.");
         m_isWithholdingSamples = true;
+        m_isCatchingUpForSmoothSwitch = true;
     }
 
     return sample;
