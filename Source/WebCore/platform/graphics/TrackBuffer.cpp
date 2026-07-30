@@ -174,11 +174,9 @@ void TrackBuffer::addSample(MediaSample& sample)
         // Insert the dependent samples of the new GOP into the decode queue.
         for (auto it = newGopStart; it != m_samples.decodeOrder().end() && it->first < decodeKey; ++it) {
             Ref<MediaSample> dependentSample = it->second;
-            // TODO: is this entirely accurate? e.g. sample duration is not accounted for!
-            //       (How is non-/displaying usually assigned for paritially overlapping samples?)
-            bool needsNonDisplaying = dependentSample->presentationTime() < m_highestEnqueuedPresentationTime;
-            ALWAYS_LOG(LOGIDENTIFIER, "Inserting dependent sample with PTS=", dependentSample->presentationTime().toDouble(), " as ",
-                needsNonDisplaying ? "non-displaying" : "displaying", " sample, based on highest enQd PTS: ", m_highestEnqueuedPresentationTime);
+            bool needsNonDisplaying = dependentSample->presentationEndTime()
+                < m_highestEnqueuedPresentationTime + PlatformTimeRanges::timeFudgeFactor();
+            ALWAYS_LOG(LOGIDENTIFIER, "Inserting dependent ", needsNonDisplaying ? "non-" : "" , "displaying sample with PTS=", dependentSample->presentationTime().toDouble());
             Ref<MediaSample> dependentSampleToInsert = needsNonDisplaying ?
                 dependentSample->createNonDisplayingCopy() : dependentSample;
             m_decodeQueue.insert({ it->first, dependentSampleToInsert });
@@ -201,12 +199,15 @@ void TrackBuffer::addSample(MediaSample& sample)
     // If the frame is after the discontinuity boundary, the enqueueing algorithm will hold it there until samples
     // with earlier timestamps are enqueued. The decode queue is not FIFO, but rather an ordered map.
     if (!m_isWithholdingSamples && (lastEnqueuedDecodeKey().first.isInvalid() || decodeKey > lastEnqueuedDecodeKey())) {
-        bool needsNonDisplaying = m_isCatchingUpForSmoothSwitch && sample.presentationTime() < m_highestEnqueuedPresentationTime;
+        bool needsNonDisplaying = m_isCatchingUpForSmoothSwitch
+            && sample.presentationEndTime() < m_highestEnqueuedPresentationTime + PlatformTimeRanges::timeFudgeFactor();
         DEBUG_LOG(LOGIDENTIFIER, "Inserting ", needsNonDisplaying ? "non-" : "", "displaying sample in decodeQueue with decodeKey: DTS=", decodeKey.first.toDouble(), " PTS=", decodeKey.second.toDouble());
+        Ref<MediaSample> sampleToInsert = needsNonDisplaying ?
+            sample.createNonDisplayingCopy() : Ref(sample);
 
         // Due to a previous smooth switch, there may remain samples in the decode queue that are no longer part
         // of the official samples in the track. If the new sample overlaps with such a sample, it must be erased.
-        auto result = decodeQueue().insert_or_assign(decodeKey, needsNonDisplaying ? sample.createNonDisplayingCopy() : Ref(sample));
+        auto result = decodeQueue().insert_or_assign(decodeKey, sampleToInsert);
         if (!result.second)
             ALWAYS_LOG(LOGIDENTIFIER, "Overwrote sample from previous smooth switch with identical decodeKey: DTS=", decodeKey.first.toDouble());
         auto it = result.first;
@@ -295,6 +296,7 @@ RefPtr<MediaSample> TrackBuffer::nextSample()
     decodeQueue().erase(decodeQueue().begin());
 
     MediaTime samplePresentationEnd = sample->presentationEndTime();
+
     if (highestEnqueuedPresentationTime().isInvalid() || samplePresentationEnd > highestEnqueuedPresentationTime()) {
         setHighestEnqueuedPresentationTime(samplePresentationEnd);
 
@@ -332,7 +334,6 @@ RefPtr<MediaSample> TrackBuffer::nextSample()
         // Test case: LayoutTests/media/media-source/media-source-smooth-switch-sandwiched-replacement.html
         ALWAYS_LOG(LOGIDENTIFIER, "Smooth switch: The GOP currently being appended needs to be withheld again.");
         m_isWithholdingSamples = true;
-        m_isCatchingUpForSmoothSwitch = true;
     }
 
     return sample;

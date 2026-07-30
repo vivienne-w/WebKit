@@ -1,2 +1,28 @@
-placeholder
+
+EXPECTED (source.readyState == 'closed') OK
+EVENT(sourceopen)
+RUN(sourceBuffer = source.addSourceBuffer("video/mock; codecs=mock"))
+RUN(sourceBuffer.appendBuffer(initSegment))
+EVENT(updateend)
+RUN(internals.setMaximumQueueDepthForTrackID(sourceBuffer, TRACK_ID, 0))
+RUN(sourceBuffer.appendBuffer(samplesGen1))
+EVENT(updateend)
+RUN(internals.setMaximumQueueDepthForTrackID(sourceBuffer, TRACK_ID, 44))
+RUN(sourceBuffer.appendBuffer(samplesGen2))
+EVENT(updateend)
+RUN(internals.setMaximumQueueDepthForTrackID(sourceBuffer, TRACK_ID, 47))
+RUN(sourceBuffer.appendBuffer(samplesGen3))
+EVENT(updateend)
+RUN(sourceBuffer.appendBuffer(samplesGen4))
+EVENT(updateend)
+RUN(internals.setMaximumQueueDepthForTrackID(sourceBuffer, TRACK_ID, 71))
+DTS:  0.000000 ..  0.041000   GEN 1 SYNC            1 samples
+DTS:  0.041000 ..  1.833000   GEN 1                43 samples
+DTS:  1.000000 ..  1.041000 * GEN 2 SYNC NON-DISP   1 samples
+DTS:  1.041000 ..  1.125000   GEN 2      NON-DISP   2 samples
+DTS:  1.300000 ..  1.341000 * GEN 4 SYNC NON-DISP   1 samples
+DTS:  1.341000 ..  1.800000   GEN 4      NON-DISP  11 samples
+DTS:  1.800000 ..  2.300000   GEN 4                12 samples
+END OF TEST
+
 
