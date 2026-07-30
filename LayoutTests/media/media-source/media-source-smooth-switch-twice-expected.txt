@@ -34,6 +34,7 @@ EVENT(updateend)
 RUN(internals.setMaximumQueueDepthForTrackID(sourceBuffer, TRACK_ID, QUEUE_DEPTH_UNLIMITED))
 
 Samples of the third generation must also be enqueued as non-displaying, but only up to the end of the generation 1 GOP.
+No more samples of the second generation must be enqueued, since they are no longer useful to catch-up the decoder.
 Enqueued samples:
 {PTS({0/1 = 0.000000}), DTS({0/1 = 0.000000}), duration({1/1 = 1.000000}), flags(1), generation(1)}
 {PTS({1/1 = 1.000000}), DTS({1/1 = 1.000000}), duration({1/1 = 1.000000}), flags(0), generation(1)}

@@ -39,7 +39,7 @@ Enqueued samples:
 {PTS({5/1 = 5.000000}), DTS({5/1 = 5.000000}), duration({1/1 = 1.000000}), flags(0), generation(1)}
 {PTS({6/1 = 6.000000}), DTS({6/1 = 6.000000}), duration({1/1 = 1.000000}), flags(0), generation(1)}
 {PTS({21/4 = 5.250000}), DTS({21/4 = 5.250000}), duration({1/1 = 1.000000}), flags(3), generation(3)}
-{PTS({25/4 = 6.250000}), DTS({25/4 = 6.250000}), duration({1/1 = 1.000000}), flags(2), generation(3)}
+{PTS({25/4 = 6.250000}), DTS({25/4 = 6.250000}), duration({1/1 = 1.000000}), flags(0), generation(3)}
 {PTS({29/4 = 7.250000}), DTS({29/4 = 7.250000}), duration({1/1 = 1.000000}), flags(0), generation(3)}
 {PTS({33/4 = 8.250000}), DTS({33/4 = 8.250000}), duration({1/1 = 1.000000}), flags(0), generation(3)}
 {PTS({37/4 = 9.250000}), DTS({37/4 = 9.250000}), duration({1/1 = 1.000000}), flags(0), generation(3)}
