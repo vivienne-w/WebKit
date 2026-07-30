@@ -140,8 +140,7 @@ void TrackBuffer::addSample(MediaSample& sample)
     if (sample.isSync()) {
         m_groupLeaderDecodeKey = decodeKey;
         if (m_lastEnqueuedDecodeKey.first.isInvalid() || decodeKey > m_lastEnqueuedDecodeKey) {
-            // FIXME: what should happen with invalid highest PTS? when does that occur?
-            if (m_isCatchingUpForSmoothSwitch && highestEnqueuedPresentationTime().isValid() && sample.presentationTime() < highestEnqueuedPresentationTime()) {
+            if (m_isCatchingUpForSmoothSwitch && highestEnqueuedPresentationTime().isValid() && sample.presentationTime() < m_highestEnqueuedPresentationTime) {
                 ALWAYS_LOG(LOGIDENTIFIER, "Smooth switch: New GOP during catch-up, discarding previous catch-up samples");
                 m_decodeQueue.erase(m_decodeQueue.begin(), m_decodeQueue.upper_bound(decodeKey));
             } else
@@ -154,7 +153,6 @@ void TrackBuffer::addSample(MediaSample& sample)
         }
     }
 
-    // TODO: what about when the boundary is invalid?
     if (!sample.isSync() && m_isWithholdingSamples && futureDiscontinuityBoundary().isValid() && sample.decodeTime() > futureDiscontinuityBoundary()) {
         m_isWithholdingSamples = false;
 
