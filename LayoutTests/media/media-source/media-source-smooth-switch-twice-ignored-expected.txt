@@ -1,3 +1,4 @@
+
 EXPECTED (source.readyState == 'closed') OK
 EVENT(sourceopen)
 RUN(sourceBuffer = source.addSourceBuffer("video/mock; codecs=mock"))

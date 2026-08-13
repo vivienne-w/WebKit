@@ -96,6 +96,8 @@ public:
     void setHighestEnqueuedPresentationTime(MediaTime timestamp) { m_highestEnqueuedPresentationTime = WTF::move(timestamp); }
     const MediaTime& minimumEnqueuedPresentationTime() const LIFETIME_BOUND { return m_minimumEnqueuedPresentationTime; }
 
+    const MediaTime futureDiscontinuityBoundary();
+
     // Raises the tracked reorder depth. Call once per init segment with the
     // codec-declared max_num_reorder_frames / sps_max_num_reorder_pics when
     // available. The running observation in addSample() can only grow it further.
@@ -138,6 +140,9 @@ private:
     friend UniqueRef<TrackBuffer> WTF::makeUniqueRefWithoutFastMallocCheck<TrackBuffer>(RefPtr<WebCore::MediaDescription>&&, IsAcceptableEnqueueGapFn&&);
     TrackBuffer(RefPtr<MediaDescription>&&, IsAcceptableEnqueueGapFn&&);
 
+    void advanceFurthestContiguousSample();
+    void updateFurthestContiguousSampleBeforeErase(DecodeOrderSampleMap::iterator);
+
     // Returns true if the DTS gap from `fromTime` to `toTime` is small
     // enough to enqueue across. Gaps within
     // PlatformTimeRanges::timeFudgeFactor() are always accepted (the
@@ -145,8 +150,6 @@ private:
     // gaps consult the constructor-supplied callback (when set —
     // currently MSE only).
     bool isAcceptableEnqueueGap(const MediaTime& fromTime, const MediaTime& toTime) const;
-
-    MediaTime futureDiscontinuityBoundary() const;
 
     const DecodeOrderSampleMap::MapType& decodeQueue() const LIFETIME_BOUND { return m_decodeQueue; }
     DecodeOrderSampleMap::MapType& decodeQueue() LIFETIME_BOUND { return m_decodeQueue; }
@@ -196,6 +199,7 @@ private:
     MediaTime m_lastEnqueueDecodeEnd;
     IsAcceptableEnqueueGapFn m_isAcceptableEnqueueGap;
 
+    DecodeOrderSampleMap::iterator m_furthestContiguousSample;
 
     // The decode key of the sync sample of the latest appeneded GOP.
     DecodeOrderSampleMap::KeyType m_groupLeaderDecodeKey { MediaTime::invalidTime(), MediaTime::invalidTime() };
