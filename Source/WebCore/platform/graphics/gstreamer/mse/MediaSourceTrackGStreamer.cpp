@@ -39,12 +39,13 @@ GST_DEBUG_CATEGORY_STATIC(webkit_mse_track_debug);
 
 namespace WebCore {
 
-MediaSourceTrackGStreamer::MediaSourceTrackGStreamer(GStreamerTrackType type, TrackID trackId, GRefPtr<GstCaps>&& initialCaps)
+MediaSourceTrackGStreamer::MediaSourceTrackGStreamer(SourceBufferPrivate& sourceBufferPrivate, GStreamerTrackType type, TrackID trackId, GRefPtr<GstCaps>&& initialCaps)
     : m_type(type)
     , m_id(trackId)
     , m_initialCaps(WTF::move(initialCaps))
+    , m_sourceBufferPrivate(sourceBufferPrivate)
     , m_innerSink(adoptRef(*new GStreamerTrackSampleSink(trackId)))
-    , m_activeSink(m_innerSink)
+    , m_activeSink(SmoothSwitchOnGOP::create(m_sourceBufferPrivate, m_innerSink))
 {
     static std::once_flag debugRegisteredFlag;
     std::call_once(debugRegisteredFlag, [] {
@@ -57,9 +58,9 @@ MediaSourceTrackGStreamer::~MediaSourceTrackGStreamer()
     ASSERT(m_isRemoved);
 }
 
-Ref<MediaSourceTrackGStreamer> MediaSourceTrackGStreamer::create(GStreamerTrackType type, TrackID trackId, GRefPtr<GstCaps>&& initialCaps)
+Ref<MediaSourceTrackGStreamer> MediaSourceTrackGStreamer::create(SourceBufferPrivate& sourceBufferPrivate, GStreamerTrackType type, TrackID trackId, GRefPtr<GstCaps>&& initialCaps)
 {
-    return adoptRef(*new MediaSourceTrackGStreamer(type, trackId, WTF::move(initialCaps)));
+    return adoptRef(*new MediaSourceTrackGStreamer(sourceBufferPrivate, type, trackId, WTF::move(initialCaps)));
 }
 
 bool MediaSourceTrackGStreamer::GStreamerTrackSampleSink::isReadyForMoreSamples()
@@ -99,6 +100,7 @@ void MediaSourceTrackGStreamer::GStreamerTrackSampleSink::flush()
 {
     // TODO
     // Probably will have to make a way to call SourceBufferPrivateGStreamer::flush()
+    GST_FIXME("unimplemented");
 }
 
 void MediaSourceTrackGStreamer::clearQueue()

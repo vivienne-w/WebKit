@@ -205,12 +205,10 @@ void SourceBufferPrivateGStreamer::flush(TrackID trackId)
         webKitMediaSrcFlush(source, track->id());
 }
 
-// TODO
-// void handleChangeInAlreadyEnqueuedContent(TrackID trackID, DecodeOrderSampleMap::MapType notYetEnqueuedSamples)
-// {
-//     UNUSED_PARAM(trackID);
-//     UNUSED_PARAM(notYetEnqueuedSamples);
-// }
+void SourceBufferPrivateGStreamer::handleChangeInAlreadyEnqueuedContent(TrackID trackID, DecodeOrderSampleMap::MapType notYetEnqueuedSamples)
+{
+    m_tracks[trackID]->handleChangeInAlreadyEnqueuedContent(notYetEnqueuedSamples);
+}
 
 void SourceBufferPrivateGStreamer::enqueueSample(Ref<MediaSample>&& sample, TrackID trackId)
 {
@@ -288,21 +286,21 @@ bool SourceBufferPrivateGStreamer::precheckInitializationSegment(const Initializ
         GRefPtr<GstCaps> initialCaps = videoTrackInfo->initialCaps();
         ASSERT(initialCaps);
         if (!m_tracks.contains(videoTrackInfo->id()))
-            m_tracks.try_emplace(videoTrackInfo->id(), MediaSourceTrackGStreamer::create(GStreamerTrackType::Video, videoTrackInfo->id(), WTF::move(initialCaps)));
+            m_tracks.try_emplace(videoTrackInfo->id(), MediaSourceTrackGStreamer::create(*this, GStreamerTrackType::Video, videoTrackInfo->id(), WTF::move(initialCaps)));
     }
     for (auto& trackInfo : segment.audioTracks) {
         auto* audioTrackInfo = static_cast<AudioTrackPrivateGStreamer*>(trackInfo.track.get());
         GRefPtr<GstCaps> initialCaps = audioTrackInfo->initialCaps();
         ASSERT(initialCaps);
         if (!m_tracks.contains(audioTrackInfo->id()))
-            m_tracks.try_emplace(audioTrackInfo->id(), MediaSourceTrackGStreamer::create(GStreamerTrackType::Audio, audioTrackInfo->id(), WTF::move(initialCaps)));
+            m_tracks.try_emplace(audioTrackInfo->id(), MediaSourceTrackGStreamer::create(*this, GStreamerTrackType::Audio, audioTrackInfo->id(), WTF::move(initialCaps)));
     }
     for (auto& trackInfo : segment.textTracks) {
         auto* textTrackInfo = static_cast<InbandTextTrackPrivateGStreamer*>(trackInfo.track.get());
         GRefPtr<GstCaps> initialCaps = textTrackInfo->initialCaps();
         ASSERT(initialCaps);
         if (!m_tracks.contains(textTrackInfo->id()))
-            m_tracks.try_emplace(textTrackInfo->id(), MediaSourceTrackGStreamer::create(GStreamerTrackType::Text, textTrackInfo->id(), WTF::move(initialCaps)));
+            m_tracks.try_emplace(textTrackInfo->id(), MediaSourceTrackGStreamer::create(*this, GStreamerTrackType::Text, textTrackInfo->id(), WTF::move(initialCaps)));
     }
 
     return true;

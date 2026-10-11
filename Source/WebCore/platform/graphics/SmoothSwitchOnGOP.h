@@ -26,9 +26,12 @@
 
 #pragma once
 
+#include <variant>
 #include "WebCore/MediaSample.h"
 #include "WebCore/SampleMap.h"
+#include "WebCore/SourceBufferPrivate.h"
 #include "wtf/AbstractRefCounted.h"
+#include "wtf/LoggerHelper.h"
 
 namespace WebCore {
 
@@ -43,13 +46,19 @@ public:
     virtual void handleChangeInAlreadyEnqueuedContent(DecodeOrderSampleMap::MapType) { flush(); }
 };
 
-class SmoothSwitchOnGOP final: public ThreadSafeRefCounted<SmoothSwitchOnGOP>, public SampleSink {
+class SmoothSwitchOnGOP final
+    : public ThreadSafeRefCounted<SmoothSwitchOnGOP>
+    , public SampleSink
+#if !RELEASE_LOG_DISABLED
+    , public LoggerHelper
+#endif
+{
     WTF_MAKE_TZONE_ALLOCATED(SmoothSwitchOnGOP);
 public:
     void ref() const final { ThreadSafeRefCounted::ref(); }
     void deref() const final { ThreadSafeRefCounted::deref(); }
 
-    static Ref<SmoothSwitchOnGOP> create(const Ref<SampleSink>& innerSink) { return adoptRef(*new SmoothSwitchOnGOP(innerSink)); }
+    static Ref<SmoothSwitchOnGOP> create(SourceBufferPrivate& sourceBufferPrivate, const Ref<SampleSink>& innerSink) { return adoptRef(*new SmoothSwitchOnGOP(sourceBufferPrivate, innerSink)); }
 
     bool isReadyForMoreSamples() final;
     void notifyWhenReadyForMoreSamples(std::function<void()>&&) final;
@@ -59,18 +68,41 @@ public:
     void handleChangeInAlreadyEnqueuedContent(DecodeOrderSampleMap::MapType notYetEnqueuedSamples) final;
 
 private:
-    SmoothSwitchOnGOP(const Ref<SampleSink>& innerSink)
+    SmoothSwitchOnGOP(SourceBufferPrivate& sourceBufferPrivate, const Ref<SampleSink>& innerSink)
         : m_innerSink(innerSink)
+#if !RELEASE_LOG_DISABLED
+        , m_logger(sourceBufferPrivate.sourceBufferLogger())
+        , m_logIdentifier(sourceBufferPrivate.sourceBufferLogIdentifier())
+#endif
     {}
     Ref<SampleSink> m_innerSink;
 
     MediaTime m_highestDeliveredPTS { MediaTime::invalidTime() };
     DecodeOrderSampleMap::KeyType m_lastDeliveredDecodeKey { MediaTime::invalidTime(), MediaTime::invalidTime() };
 
-    DecodeOrderSampleMap::MapType m_oldSamples;
-    DecodeOrderSampleMap::MapType m_newSamples;
+    struct StateCollecting {
+        DecodeOrderSampleMap::MapType oldSamples;
+        DecodeOrderSampleMap::MapType newGop;
+    };
+    struct StateVacating {
+        DecodeOrderSampleMap::MapType vacatingQueue;
+    };
+    typedef std::variant<StateCollecting, StateVacating> State;
+    State m_currentState { StateVacating { } };
+    bool m_allSamplesEnqueued { false };
 
+    void deliverSample(Ref<MediaSample>&& sample);
     void tryFeedInnerSink();
+
+#if !RELEASE_LOG_DISABLED
+    const Logger& logger() const final { return m_logger; }
+    uint64_t logIdentifier() const final { return m_logIdentifier; }
+    ASCIILiteral logClassName() const { return "SmoothSwitchOnGOP"_s; }
+    WTFLogChannel& NODELETE logChannel() const;
+
+    const Ref<const Logger> m_logger;
+    const uint64_t m_logIdentifier;
+#endif
 };
 
 } // namespace WebCore

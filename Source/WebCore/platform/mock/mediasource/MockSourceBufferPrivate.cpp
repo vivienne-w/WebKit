@@ -204,6 +204,11 @@ bool MockSourceBufferPrivate::MockTrackSampleSink::isReadyForMoreSamples()
     return !track->maxQueueDepth || track->enqueuedSamples.size() < track->maxQueueDepth.value();
 }
 
+void MockSourceBufferPrivate::handleChangeInAlreadyEnqueuedContent(TrackID trackID, DecodeOrderSampleMap::MapType notYetEnqueuedSamples)
+{
+    m_tracks.at(trackID)->activeSink->handleChangeInAlreadyEnqueuedContent(notYetEnqueuedSamples);
+}
+
 void MockSourceBufferPrivate::flush(TrackID trackID)
 {
     m_tracks.at(trackID)->activeSink->flush();
@@ -279,7 +284,7 @@ void MockSourceBufferPrivate::setSmoothSwitchStrategyForTrackID(TrackID trackID,
     if (track->smoothSwitchStrategy == SmoothSwitchStrategy::GOP)
         return; // Already configured
     track->smoothSwitchStrategy = SmoothSwitchStrategy::GOP;
-    track->activeSink = SmoothSwitchOnGOP::create(track->innerSink);
+    track->activeSink = SmoothSwitchOnGOP::create(*this, track->innerSink);
 }
 
 bool MockSourceBufferPrivate::canSetMinimumUpcomingPresentationTime(TrackID) const

@@ -1081,16 +1081,6 @@ Ref<MediaPromise> SourceBufferPrivate::append(Ref<SharedBuffer>&& buffer)
     return m_currentSourceBufferOperation.get();
 }
 
-void SourceBufferPrivate::handleChangeInAlreadyEnqueuedContent(TrackID trackID, DecodeOrderSampleMap::MapType notYetEnqueuedSamples)
-{
-    // The default behavior is to discard the previous set of not yet enqueued samples
-    // and to flush the renderer.
-    // Ports can override this method to perform various flushless smooth switch strategies
-    // instead, where they will continue processing a mix of old and new samples.
-    UNUSED_PARAM(notYetEnqueuedSamples);
-    flush(trackID);
-}
-
 auto SourceBufferPrivate::findPrioritySample(const SamplesVector& samples) const -> PrioritySample
 {
     assertIsCurrent(m_dispatcher.get());

@@ -99,6 +99,7 @@ private:
     void flush(TrackID) final;
     void enqueueSample(Ref<MediaSample>&&, TrackID) final;
     bool isReadyForMoreSamples(TrackID) final;
+    void handleChangeInAlreadyEnqueuedContent(TrackID, DecodeOrderSampleMap::MapType) final;
 
     Ref<SamplesPromise> enqueuedSamplesForTrackID(TrackID) final;
     void setMaximumQueueDepthForTrackID(TrackID, uint64_t) final;

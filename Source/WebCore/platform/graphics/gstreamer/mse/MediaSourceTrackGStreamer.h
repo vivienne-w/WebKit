@@ -42,7 +42,7 @@ namespace WebCore {
 
 class MediaSourceTrackGStreamer final: public ThreadSafeRefCounted<MediaSourceTrackGStreamer> {
 public:
-    static Ref<MediaSourceTrackGStreamer> create(GStreamerTrackType, TrackID, GRefPtr<GstCaps>&& initialCaps);
+    static Ref<MediaSourceTrackGStreamer> create(SourceBufferPrivate& sourceBufferPrivate, GStreamerTrackType, TrackID, GRefPtr<GstCaps>&& initialCaps);
     ~MediaSourceTrackGStreamer();
 
     GStreamerTrackType type() const { return m_type; }
@@ -55,6 +55,7 @@ public:
     void enqueueSample(Ref<MediaSample>&& sample) { m_activeSink->enqueueSample(WTF::move(sample)); }
     void allSamplesEnqueued() { m_activeSink->allSamplesEnqueued(); }
     void flush() { m_activeSink->flush(); }
+    void handleChangeInAlreadyEnqueuedContent(DecodeOrderSampleMap::MapType notYetEnqueuedSamples) { m_activeSink->handleChangeInAlreadyEnqueuedContent(notYetEnqueuedSamples); }
 
     // This method is provided to clear the TrackQueue in cases where the stream hasn't been started (e.g. because
     // another SourceBuffer hasn't received the necessary initalization segment for playback).
@@ -65,7 +66,7 @@ public:
     void remove();
 
 private:
-    explicit MediaSourceTrackGStreamer(GStreamerTrackType, TrackID, GRefPtr<GstCaps>&& initialCaps);
+    explicit MediaSourceTrackGStreamer(SourceBufferPrivate&, GStreamerTrackType, TrackID, GRefPtr<GstCaps>&& initialCaps);
 
     class GStreamerTrackSampleSink final : public SampleSink, public ThreadSafeRefCounted<GStreamerTrackSampleSink> {
     public:
@@ -94,6 +95,7 @@ private:
     TrackID m_id;
     GRefPtr<GstCaps> m_initialCaps;
 
+    Ref<SourceBufferPrivate> m_sourceBufferPrivate;
     Ref<GStreamerTrackSampleSink> m_innerSink;
     Ref<SampleSink> m_activeSink;
 

@@ -198,11 +198,11 @@ protected:
     virtual Ref<MediaPromise> appendInternal(Ref<SharedBuffer>&&) = 0;
     virtual void resetParserStateInternal() = 0;
     virtual void flush(TrackID) { }
-    virtual void handleChangeInAlreadyEnqueuedContent(TrackID, DecodeOrderSampleMap::MapType notYetEnqueuedSamples);
     virtual void enqueueSample(Ref<MediaSample>&&, TrackID) { }
     virtual void allSamplesInTrackEnqueued(TrackID) { }
     virtual bool isReadyForMoreSamples(TrackID) { return false; }
     virtual void notifyClientWhenReadyForMoreSamples(TrackID) { }
+    virtual void handleChangeInAlreadyEnqueuedContent(TrackID, DecodeOrderSampleMap::MapType) { }
 
     virtual bool canSetMinimumUpcomingPresentationTime(TrackID) const { return false; }
     virtual void setMinimumUpcomingPresentationTime(TrackID, const MediaTime&) { }
@@ -329,6 +329,7 @@ private:
 
     bool m_isMediaSourceEnded WTF_GUARDED_BY_CAPABILITY(m_dispatcher.get()) { false };
     std::optional<InitializationSegment> m_lastInitializationSegment WTF_GUARDED_BY_CAPABILITY(m_dispatcher.get());
+
 
 #if ASSERT_ENABLED
     const uint32_t m_creationThreadId { 0 };
