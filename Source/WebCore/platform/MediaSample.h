@@ -78,6 +78,9 @@ class MediaSample : public ThreadSafeRefCounted<MediaSample> {
 public:
     virtual ~MediaSample() = default;
 
+    // FIXME: debugging
+    virtual unsigned NODELETE generation() const { return 123456; }
+
     virtual MediaTime presentationTime() const = 0;
     virtual MediaTime decodeTime() const = 0;
     virtual MediaTime duration() const = 0;

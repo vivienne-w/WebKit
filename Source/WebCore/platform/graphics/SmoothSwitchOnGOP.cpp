@@ -29,6 +29,9 @@
 
 #include "Logging.h"
 
+#include <cstdio>
+#pragma GCC diagnostic ignored "-Wunsafe-buffer-usage-in-libc-call"
+
 namespace WebCore {
 
 bool SmoothSwitchOnGOP::isReadyForMoreSamples()
@@ -50,21 +53,30 @@ void SmoothSwitchOnGOP::notifyWhenReadyForMoreSamples(std::function<void()>&& ca
 void SmoothSwitchOnGOP::enqueueSample(Ref<MediaSample>&& sample)
 {
     DEBUG_LOG(LOGIDENTIFIER, "Enqueue with DTS=", sample->decodeTime().toDouble());
+    fprintf(stderr, "enqueueSample %s\n", sample->decodeTime().toString().utf8().data());
 
     DecodeOrderSampleMap::KeyType decodeKey { sample->decodeTime(), sample->presentationTime() };
 
     if (auto* current = std::get_if<StateCollecting>(&m_currentState)) {
+        fprintf(stderr, "  (in collecting state, old samples: %lu, new gop: %lu)\n", current->oldSamples.size(), current->newGop.size());
         if (sample->isSync()) {
             current->newGop.clear();
 
             if ((m_lastDeliveredDecodeKey.first.isInvalid() || decodeKey > m_lastDeliveredDecodeKey)) {
                 DEBUG_LOG(LOGIDENTIFIER, "Switching to new GOP with DTS=", sample->decodeTime().toDouble());
+                fprintf(stderr, "  switching to new gop, dts: %s\n", sample->decodeTime().toString().utf8().data());
                 current->oldSamples.erase(current->oldSamples.lower_bound(decodeKey), current->oldSamples.end());
+
+                for (auto& remaining : current->oldSamples) {
+                    fprintf(stderr, "  remaining old sample, dts = %s\n", remaining.second->decodeTime().toString().utf8().data());
+                }
+
                 current->oldSamples.insert({ decodeKey, WTF::move(sample) });
                 m_currentState = StateVacating { WTF::move(current->oldSamples) };
             } else {
                 // TODO: check if exceeded deadline
                 DEBUG_LOG(LOGIDENTIFIER, "Not switching to GOP with DTS=", sample->decodeTime().toDouble());
+                fprintf(stderr, "  not switching to new gop, dts: %s\n", sample->decodeTime().toString().utf8().data());
                 current->newGop.erase(current->newGop.begin(), current->newGop.upper_bound(decodeKey)); // FIXME we clear above already
                 current->newGop.insert({ decodeKey, WTF::move(sample) });
                 // TODO be careful to not use sample again when handling the Vacating state
@@ -73,6 +85,7 @@ void SmoothSwitchOnGOP::enqueueSample(Ref<MediaSample>&& sample)
             current->newGop.insert({ decodeKey, WTF::move(sample) });
         }
     } else if (auto* current = std::get_if<StateVacating>(&m_currentState)) {
+        fprintf(stderr, "  (in vacating state)\n");
         current->vacatingQueue.insert({ decodeKey, WTF::move(sample) });
     }
 
@@ -139,6 +152,7 @@ void SmoothSwitchOnGOP::handleChangeInAlreadyEnqueuedContent(DecodeOrderSampleMa
     //     DecodeOrderSampleMap::KeyType decodeKey = pair.first;
     //     m_oldSamples.insert_or_assign(decodeKey, protect(pair.second));
     // }
+    fprintf(stderr, "handleChangeInAlreadyEnqueuedContent, not yet enqueued: %lu\n", notYetEnqueuedSamples.size());
 
     if (std::holds_alternative<StateCollecting>(m_currentState)) {
         DEBUG_LOG(LOGIDENTIFIER, "Ignoring content change due to already being in collecting state");
@@ -154,6 +168,7 @@ void SmoothSwitchOnGOP::deliverSample(Ref<MediaSample>&& sample) {
         m_highestDeliveredPTS = sample->presentationTime();
 
     m_lastDeliveredDecodeKey = { sample->decodeTime(), sample->presentationTime() };
+    fprintf(stderr, "Delivering sample with dts: %s\n", sample->decodeTime().toString().utf8().data());
     m_innerSink->enqueueSample(WTF::move(sample));
 }
 

@@ -33,6 +33,9 @@
 #include <wtf/CryptographicallyRandomNumber.h>
 #include <wtf/TZoneMallocInlines.h>
 
+#include <cstdio>
+#pragma GCC diagnostic ignored "-Wunsafe-buffer-usage-in-libc-call"
+
 namespace WebCore {
 
 WTF_MAKE_TZONE_ALLOCATED_IMPL(TrackBuffer);
@@ -139,6 +142,8 @@ void TrackBuffer::addSample(MediaSample& sample)
     // (notably SourceBufferPrivate::processMediaSample) are responsible for
     // erasing any colliding sample before adding the new one.
     ASSERT(m_samples.decodeOrder().findSampleWithDecodeKey(DecodeOrderSampleMap::KeyType(sample.decodeTime(), sample.presentationTime())) == m_samples.decodeOrder().end());
+
+    fprintf(stderr, "--TrackBuffer::addSample, dts: %s, gen: %u\n", sample.decodeTime().toString().utf8().data(), sample.generation());
 
     m_samples.addSample(sample);
 
@@ -390,6 +395,7 @@ MediaTime TrackBuffer::findSeekTimeForTargetTime(const MediaTime& targetTime, co
 
 PlatformTimeRanges TrackBuffer::removeSamples(const DecodeOrderSampleMap::MapType& samples, ASCIILiteral logPrefix)
 {
+    fprintf(stderr, "--TrackBuffer::removeSamples()\n");
 #if !RELEASE_LOG_DISABLED
     auto logId = Logger::LogSiteIdentifier(logClassName(), logPrefix, logIdentifier());
     MediaTime earliestSample = MediaTime::positiveInfiniteTime();
@@ -691,6 +697,7 @@ DecodeOrderSampleMap::MapType TrackBuffer::takeNotYetEnqueuedSamples()
     // It only makes sense to call this function when we're about to clear
     // the decodeQueue for a reenqueue.
     ASSERT(needsReenqueueing());
+    fprintf(stderr, "--TrackBuffer::takeNotYetEnqueuedSamples\n");
     DecodeOrderSampleMap::MapType samples = std::move(m_decodeQueue);
     clearDecodeQueue();
     return samples;

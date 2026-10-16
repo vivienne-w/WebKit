@@ -42,12 +42,18 @@
 #include <wtf/NativePromise.h>
 #include <wtf/StringPrintStream.h>
 
+#include <cstdio>
+#pragma GCC diagnostic ignored "-Wunsafe-buffer-usage-in-libc-call"
+
 namespace WebCore {
 
 class MockMediaSample final : public MediaSample {
 public:
     static Ref<MockMediaSample> create(const MockSampleBox& box) { return adoptRef(*new MockMediaSample(box)); }
     virtual ~MockMediaSample() = default;
+
+    // FIXME temporarily public for debugging
+    unsigned NODELETE generation() const override { return m_box.generation(); }
 
 private:
     MockMediaSample(const MockSampleBox& box)
@@ -71,7 +77,6 @@ private:
     Ref<MediaSample> createNonDisplayingCopy() const override;
     Ref<MediaSample> createCopyWithAdjustedStartTime(const MediaTime& offset) const override;
 
-    unsigned NODELETE generation() const { return m_box.generation(); }
 
     MockSampleBox m_box;
     TrackID m_id;
@@ -200,12 +205,19 @@ bool MockSourceBufferPrivate::isReadyForMoreSamples(TrackID trackID)
 
 bool MockSourceBufferPrivate::MockTrackSampleSink::isReadyForMoreSamples()
 {
+    fprintf(stderr, "isReady\n");
     RefPtr<MockTrack> track = m_track.get();
     return !track->maxQueueDepth || track->enqueuedSamples.size() < track->maxQueueDepth.value();
 }
 
 void MockSourceBufferPrivate::handleChangeInAlreadyEnqueuedContent(TrackID trackID, DecodeOrderSampleMap::MapType notYetEnqueuedSamples)
 {
+    fprintf(stderr, "  not yet enqueued samples:\n");
+    for (auto pair : notYetEnqueuedSamples) {
+        auto sample = pair.second;
+        fprintf(stderr, "    dts(%s) generation(%u)\n", sample->decodeTime().toString().utf8().data(), sample->generation());
+    }
+
     m_tracks.at(trackID)->activeSink->handleChangeInAlreadyEnqueuedContent(notYetEnqueuedSamples);
 }
 
@@ -270,6 +282,8 @@ Ref<SourceBufferPrivate::SamplesPromise> MockSourceBufferPrivate::enqueuedSample
 //        in SmoothSwitchOnGOP - should it be?
 void MockSourceBufferPrivate::setMaximumQueueDepthForTrackID(TrackID trackID, uint64_t maxQueueDepth)
 {
+    fprintf(stderr, "set max depth: %lu\n", maxQueueDepth);
+
     RefPtr<MockTrack> track = m_tracks.at(trackID);
     track->maxQueueDepth = maxQueueDepth;
     // After the change we may be ready for more samples.

@@ -517,6 +517,7 @@ void SourceBufferPrivate::reenqueueMediaIfNeeded(const MediaTime& currentTime)
 
 static PlatformTimeRanges removeSamplesFromTrackBuffer(const DecodeOrderSampleMap::MapType& samples, TrackBuffer& trackBuffer, ASCIILiteral logPrefix)
 {
+    fprintf(stderr, "--removeSamplesFromTrackBuffer\n");
     return trackBuffer.removeSamples(samples, logPrefix);
 }
 
