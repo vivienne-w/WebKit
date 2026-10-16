@@ -266,6 +266,8 @@ Ref<SourceBufferPrivate::SamplesPromise> MockSourceBufferPrivate::enqueuedSample
     return SamplesPromise::createAndResolve(copyToVector(track->enqueuedSamples));
 }
 
+// FIXME: with the current design, this doesn't take into account whatever samples might be queued up
+//        in SmoothSwitchOnGOP - should it be?
 void MockSourceBufferPrivate::setMaximumQueueDepthForTrackID(TrackID trackID, uint64_t maxQueueDepth)
 {
     RefPtr<MockTrack> track = m_tracks.at(trackID);

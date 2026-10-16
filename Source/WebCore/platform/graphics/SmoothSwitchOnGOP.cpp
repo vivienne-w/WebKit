@@ -62,15 +62,20 @@ void SmoothSwitchOnGOP::enqueueSample(Ref<MediaSample>&& sample)
                 current->oldSamples.erase(current->oldSamples.lower_bound(decodeKey), current->oldSamples.end());
                 current->oldSamples.insert({ decodeKey, WTF::move(sample) });
                 m_currentState = StateVacating { WTF::move(current->oldSamples) };
+            } else {
+                // TODO: check if exceeded deadline
+                DEBUG_LOG(LOGIDENTIFIER, "Not switching to GOP with DTS=", sample->decodeTime().toDouble());
+                current->newGop.erase(current->newGop.begin(), current->newGop.upper_bound(decodeKey)); // FIXME we clear above already
+                current->newGop.insert({ decodeKey, WTF::move(sample) });
+                // TODO be careful to not use sample again when handling the Vacating state
             }
         } else {
-            // TODO: check if exceeded deadline
-            DEBUG_LOG(LOGIDENTIFIER, "Not switching to GOP with DTS=", sample->decodeTime().toDouble());
-            current->newGop.erase(current->newGop.begin(), current->newGop.upper_bound(decodeKey));
             current->newGop.insert({ decodeKey, WTF::move(sample) });
-            // TODO be careful to not use sample again when handling the Vacating state
         }
+    } else if (auto* current = std::get_if<StateVacating>(&m_currentState)) {
+        current->vacatingQueue.insert({ decodeKey, WTF::move(sample) });
     }
+
     tryFeedInnerSink();
 
     // if (!m_oldSamples.empty()) {
@@ -142,7 +147,6 @@ void SmoothSwitchOnGOP::handleChangeInAlreadyEnqueuedContent(DecodeOrderSampleMa
 
     DEBUG_LOG(LOGIDENTIFIER, "Transferred not yet enqueued samples, will start collecting new frames");
     m_currentState = StateCollecting { WTF::move(notYetEnqueuedSamples), {} };
-
 }
 
 void SmoothSwitchOnGOP::deliverSample(Ref<MediaSample>&& sample) {

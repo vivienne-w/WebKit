@@ -1049,12 +1049,14 @@ Ref<MediaPromise> SourceBufferPrivate::append(Ref<SharedBuffer>&& buffer)
         // It is important that this is handled before the append is complete so that in case
         // of a flush it is processed ahead ahead of any subsequent play()/setRate() IPC
         // dispatched in response to the readyState change.
-        for (auto& trackBufferPair : protectedThis->m_trackBufferMap) {
-            TrackID trackID = trackBufferPair.first;
-            TrackBuffer& trackBuffer = trackBufferPair.second;
-            if (trackBuffer.needsReenqueueing())
-                protectedThis->handleChangeInAlreadyEnqueuedContent(trackID, trackBuffer.takeNotYetEnqueuedSamples());
-        }
+
+        // NOTE: doing handleChange... here means that the notYetEnqueuedSamples would already have been overwritten
+        // for (auto& trackBufferPair : protectedThis->m_trackBufferMap) {
+        //     TrackID trackID = trackBufferPair.first;
+        //     TrackBuffer& trackBuffer = trackBufferPair.second;
+        //     if (trackBuffer.needsReenqueueing())
+        //         protectedThis->handleChangeInAlreadyEnqueuedContent(trackID, trackBuffer.takeNotYetEnqueuedSamples());
+        // }
 
         protectedThis->computeEvictionData();
 
@@ -1640,19 +1642,30 @@ bool SourceBufferPrivate::processMediaSample(SourceBufferPrivateClient& client, 
                     dependentSamples.insert(entry);
             }
 
+            MediaTime currentTime = this->currentTime();
+            if (trackBuffer.highestEnqueuedPresentationTime().isValid() && currentTime < trackBuffer.highestEnqueuedPresentationTime()) {
+                PlatformTimeRanges possiblyEnqueuedRanges(currentTime, trackBuffer.highestEnqueuedPresentationTime());
+                for (auto pair : dependentSamples) {
+                    if (possiblyEnqueuedRanges.contain(pair.first.first)) {
+                        handleChangeInAlreadyEnqueuedContent(trackID, trackBuffer.takeNotYetEnqueuedSamples());
+                        break;
+                    }
+                }
+            }
+
             PlatformTimeRanges erasedRanges = removeSamplesFromTrackBuffer(dependentSamples, trackBuffer, "didReceiveSample"_s);
 
             // Only force the TrackBuffer to re-enqueue if the removed ranges overlap with enqueued and possibly
             // not yet displayed samples.
-            MediaTime currentTime = this->currentTime();
-            if (trackBuffer.highestEnqueuedPresentationTime().isValid() && currentTime < trackBuffer.highestEnqueuedPresentationTime()) {
-                PlatformTimeRanges possiblyEnqueuedRanges(currentTime, trackBuffer.highestEnqueuedPresentationTime());
-                possiblyEnqueuedRanges.intersectWith(erasedRanges);
-                if (possiblyEnqueuedRanges.length()) {
-                    // TODO: use new API here or thereabouts
-                    trackBuffer.setNeedsReenqueueing(true);
-                }
-            }
+            // MediaTime currentTime = this->currentTime();
+            // if (trackBuffer.highestEnqueuedPresentationTime().isValid() && currentTime < trackBuffer.highestEnqueuedPresentationTime()) {
+            //     PlatformTimeRanges possiblyEnqueuedRanges(currentTime, trackBuffer.highestEnqueuedPresentationTime());
+            //     possiblyEnqueuedRanges.intersectWith(erasedRanges);
+            //     if (possiblyEnqueuedRanges.length()) {
+            //         // TODO: use new API here or thereabouts
+            //         handleChangeInAlreadyEnqueuedContent(trackID, trackBuffer.takeNotYetEnqueuedSamples());
+            //     }
+            // }
 
             erasedRanges.invert();
             trackBuffer.buffered().intersectWith(erasedRanges);
