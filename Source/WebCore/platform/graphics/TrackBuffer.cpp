@@ -702,6 +702,19 @@ DecodeOrderSampleMap::MapType TrackBuffer::notYetEnqueuedSamples()
 
     fprintf(stderr, "--TrackBuffer::notYetEnqueuedSamples\n");
     DecodeOrderSampleMap::MapType samples = m_decodeQueue;
+
+    // Find the first discontinuity, if any.
+    MediaTime futureEnqueueDiscontinuityBoundary = m_enqueueDiscontinuityBoundary;
+    auto it = samples.begin();
+    for (; it != samples.end(); ++it) {
+        Ref<MediaSample> sample = it->second;
+        if (futureEnqueueDiscontinuityBoundary.isValid() && sample->decodeTime() > futureEnqueueDiscontinuityBoundary
+                && (!m_isAcceptableEnqueueGap || !m_isAcceptableEnqueueGap(m_lastEnqueueDecodeEnd, sample->decodeTime())))
+            break;
+        futureEnqueueDiscontinuityBoundary = virtualDecodeEnd(sample) + PlatformTimeRanges::timeFudgeFactor();
+    }
+    samples.erase(it, samples.end());
+
     return samples;
 }
 

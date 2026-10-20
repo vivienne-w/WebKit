@@ -1648,6 +1648,7 @@ bool SourceBufferPrivate::processMediaSample(SourceBufferPrivateClient& client, 
                 PlatformTimeRanges possiblyEnqueuedRanges(currentTime, trackBuffer.highestEnqueuedPresentationTime());
                 for (auto pair : dependentSamples) {
                     if (possiblyEnqueuedRanges.contain(pair.first.first)) {
+                        trackBuffer.setNeedsReenqueueing(true);
                         handleChangeInAlreadyEnqueuedContent(trackID, trackBuffer.notYetEnqueuedSamples());
                         break;
                     }

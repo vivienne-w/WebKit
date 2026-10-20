@@ -75,14 +75,36 @@ void SmoothSwitchOnGOP::enqueueSample(Ref<MediaSample>&& sample)
                 m_currentState = StateVacating { WTF::move(current->oldSamples) };
             } else {
                 // TODO: check if exceeded deadline
-                DEBUG_LOG(LOGIDENTIFIER, "Not switching to GOP with DTS=", sample->decodeTime().toDouble());
-                fprintf(stderr, "  not switching to new gop, dts: %s\n", sample->decodeTime().toString().utf8().data());
+                DEBUG_LOG(LOGIDENTIFIER, "Not yet switching to GOP with DTS=", sample->decodeTime().toDouble());
+                fprintf(stderr, "  not yet switching to new gop, dts: %s\n", sample->decodeTime().toString().utf8().data());
                 current->newGop.erase(current->newGop.begin(), current->newGop.upper_bound(decodeKey)); // FIXME we clear above already
-                current->newGop.insert({ decodeKey, WTF::move(sample) });
+
+                if (sample->presentationTime() <= m_highestDeliveredPTS)
+                    current->newGop.insert({ decodeKey, sample->createNonDisplayingCopy() });
+                else
+                    current->newGop.insert({ decodeKey, WTF::move(sample) });
                 // TODO be careful to not use sample again when handling the Vacating state
             }
         } else {
-            current->newGop.insert({ decodeKey, WTF::move(sample) });
+            if (sample->presentationTime() <= m_highestDeliveredPTS)
+                current->newGop.insert({ decodeKey, sample->createNonDisplayingCopy() });
+            else
+                current->newGop.insert({ decodeKey, WTF::move(sample) });
+
+            bool needToRewind = true;
+            for (auto oldSample : current->oldSamples) {
+                if (decodeKey <= oldSample.first) {
+                    needToRewind = false;
+                    break;
+                }
+            }
+
+            if (needToRewind) {
+                DEBUG_LOG(LOGIDENTIFIER, "New GOP exceeds old samples, need to rewind with non-displaying samples");
+                fprintf(stderr, "  rewind\n");
+
+                m_currentState = StateVacating { WTF::move(current->newGop) };
+            }
         }
     } else if (auto* current = std::get_if<StateVacating>(&m_currentState)) {
         fprintf(stderr, "  (in vacating state)\n");
@@ -90,44 +112,6 @@ void SmoothSwitchOnGOP::enqueueSample(Ref<MediaSample>&& sample)
     }
 
     tryFeedInnerSink();
-
-    // if (!m_oldSamples.empty()) {
-    //     fprintf(stderr, "  old samples: %lu\n", m_oldSamples.size());
-    //     fprintf(stderr, "  new samples: %lu\n", m_newSamples.size());
-    //     if (sample->isSync()) {
-    //         if (m_lastDeliveredDecodeKey.first.isInvalid() || decodeKey > m_lastDeliveredDecodeKey) {
-    //             fprintf(stderr, "  fast case\n");
-    //             // Fast case: Found future GOP, feed old samples until the start of that GOP.
-    //             // Discard any overlapped old samples past that point.
-    //             // 
-    //             // By inserting the remaining old samples into m_newSamples, we
-    //             // signify we have decided how to resolve this switch,
-    //             // and can resume feeding samples to the inner sink.
-    //             m_oldSamples.erase(m_oldSamples.lower_bound(decodeKey), m_oldSamples.end());
-    //             m_newSamples.insert_range(m_oldSamples);
-    //             m_oldSamples.clear();
-    //         } else {
-    //             fprintf(stderr, "  found past GOP, erasing earlier samples of old quality\n");
-    //             // New GOP which is earlier than previously enqueued samples;
-    //             // If we don't find a future GOP we can switch at this one, so disregard earlier new samples.
-    //             m_newSamples.erase(m_newSamples.begin(), m_newSamples.upper_bound(decodeKey));
-    //             fprintf(stderr, "  remaining old samples: %lu\n", m_oldSamples.size());
-    //         }
-    //     }
-
-    //     // TODO: slow case, we find no suitable future GOP to switch to, and need to catch-up with new samples as non-displaying.
-    // }
-
-    // m_newSamples.insert({ decodeKey, WTF::move(sample) });
-    // fprintf(stderr, "  queueing new sample, now have: %lu\n", m_newSamples.size());
-
-    // if (m_oldSamples.empty()) {
-    //     // TODO: what happens if we don't feed all of m_newSamples to the inner sink here?
-    //     //        currently we would only feed more samples once SourceBuffer tries to enqueue more -
-    //     //        is this a problem?
-    //     tryFeedInnerSink();
-    // }
-    // TODO: decide whether the smooth switch must be finished
 }
 
 void SmoothSwitchOnGOP::allSamplesEnqueued()
