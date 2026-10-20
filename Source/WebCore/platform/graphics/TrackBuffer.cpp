@@ -692,14 +692,16 @@ void TrackBuffer::clearDecodeQueue()
     m_samplesSinceMaxPresentationTime = 0;
 }
 
-DecodeOrderSampleMap::MapType TrackBuffer::takeNotYetEnqueuedSamples()
+DecodeOrderSampleMap::MapType TrackBuffer::notYetEnqueuedSamples()
 {
     // It only makes sense to call this function when we're about to clear
     // the decodeQueue for a reenqueue.
-    ASSERT(needsReenqueueing());
-    fprintf(stderr, "--TrackBuffer::takeNotYetEnqueuedSamples\n");
-    DecodeOrderSampleMap::MapType samples = std::move(m_decodeQueue);
-    clearDecodeQueue();
+    //ASSERT(needsReenqueueing());
+
+    // FIXME: take discont boundary into account
+
+    fprintf(stderr, "--TrackBuffer::notYetEnqueuedSamples\n");
+    DecodeOrderSampleMap::MapType samples = m_decodeQueue;
     return samples;
 }
 

@@ -127,7 +127,7 @@ public:
     const PlatformTimeRanges& buffered() const LIFETIME_BOUND { return m_buffered; }
     PlatformTimeRanges& buffered() LIFETIME_BOUND { return m_buffered; }
 
-    DecodeOrderSampleMap::MapType takeNotYetEnqueuedSamples();
+    DecodeOrderSampleMap::MapType notYetEnqueuedSamples();
 
 #if !RELEASE_LOG_DISABLED
     void setLogger(const Logger&, uint64_t);
