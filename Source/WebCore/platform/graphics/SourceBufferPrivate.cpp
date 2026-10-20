@@ -48,6 +48,9 @@
 #include <wtf/StringPrintStream.h>
 #include <wtf/Threading.h>
 
+#include <cstdio>
+#pragma GCC diagnostic ignored "-Wunsafe-buffer-usage-in-libc-call"
+
 namespace WebCore {
 
 static const unsigned evictionAlgorithmInitialTimeChunk = 30000;
@@ -505,6 +508,7 @@ void SourceBufferPrivate::reenqueueMediaIfNeeded(const MediaTime& currentTime)
 
             if (trackBuffer.needsReenqueueing()) {
                 DEBUG_LOG_WITH_THIS(&buffer, LOGIDENTIFIER_WITH_THIS(&buffer), "reenqueuing at time ", currentTime);
+                printf("--SBP::reenqueueMediaIfNeeded (needed)\n");
                 // Flush has already been issued by flushTracksThatNeedReenqueueing()
                 // at the end of the operation that set needsReenqueueing (append /
                 // removeCodedFramesInternal). Skip the redundant flush here.
@@ -518,6 +522,10 @@ void SourceBufferPrivate::reenqueueMediaIfNeeded(const MediaTime& currentTime)
 static PlatformTimeRanges removeSamplesFromTrackBuffer(const DecodeOrderSampleMap::MapType& samples, TrackBuffer& trackBuffer, ASCIILiteral logPrefix)
 {
     fprintf(stderr, "--removeSamplesFromTrackBuffer\n");
+    for (auto pair : samples) {
+        auto sample = pair.second;
+        fprintf(stderr, "    dts(%s) generation(%u)\n", sample->decodeTime().toString().utf8().data(), sample->generation());
+    }
     return trackBuffer.removeSamples(samples, logPrefix);
 }
 
@@ -1648,6 +1656,7 @@ bool SourceBufferPrivate::processMediaSample(SourceBufferPrivateClient& client, 
                 PlatformTimeRanges possiblyEnqueuedRanges(currentTime, trackBuffer.highestEnqueuedPresentationTime());
                 for (auto pair : dependentSamples) {
                     if (possiblyEnqueuedRanges.contain(pair.first.first)) {
+                        fprintf(stderr, "--setNeedsReenqueueing(true)\n");
                         trackBuffer.setNeedsReenqueueing(true);
                         handleChangeInAlreadyEnqueuedContent(trackID, trackBuffer.notYetEnqueuedSamples());
                         break;

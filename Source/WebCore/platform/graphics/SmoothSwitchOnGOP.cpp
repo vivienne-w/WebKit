@@ -152,7 +152,7 @@ void SmoothSwitchOnGOP::deliverSample(Ref<MediaSample>&& sample) {
         m_highestDeliveredPTS = sample->presentationTime();
 
     m_lastDeliveredDecodeKey = { sample->decodeTime(), sample->presentationTime() };
-    fprintf(stderr, "Delivering sample with dts: %s\n", sample->decodeTime().toString().utf8().data());
+    fprintf(stderr, "Delivering sample: dts(%s) generation(%u)\n", sample->decodeTime().toString().utf8().data(), sample->generation());
     m_innerSink->enqueueSample(WTF::move(sample));
 }
 

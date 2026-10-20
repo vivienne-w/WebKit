@@ -285,6 +285,7 @@ void TrackBuffer::updateMinimumUpcomingPresentationTime()
 
 bool TrackBuffer::reenqueueMediaForTime(const MediaTime& time, bool isEnded)
 {
+    fprintf(stderr, "--reenqueueMediaForTime %s\n", time.toString().utf8().data());
     clearDecodeQueue();
     m_lastEnqueueDecodeEnd = time;
     m_enqueueDiscontinuityBoundary = time + PlatformTimeRanges::timeFudgeFactor();
