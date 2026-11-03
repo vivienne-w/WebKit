@@ -62,8 +62,10 @@ public:
 
     static Ref<SmoothSwitchOnGOP> create(SourceBufferPrivate& sourceBufferPrivate, const Ref<SampleSink>& innerSink) { return adoptRef(*new SmoothSwitchOnGOP(sourceBufferPrivate, innerSink)); }
 
+    typedef std::function<void()> ReadyForMoreSamplesHandler;
+
     bool isReadyForMoreSamples() final;
-    void notifyWhenReadyForMoreSamples(std::function<void()>&&) final;
+    void notifyWhenReadyForMoreSamples(ReadyForMoreSamplesHandler&&) final;
     void enqueueSample(Ref<MediaSample>&&) final;
     void allSamplesEnqueued() final;
     void flush() final;
@@ -97,6 +99,9 @@ private:
     void innerSinkNotifiedReadyForMoreSamples();
     void tryFeedInnerSink();
     void tryFeedInnerSinkSamples(DecodeOrderSampleMap::MapType&);
+    void tryNotifyReadyForMoreSamples();
+
+    ReadyForMoreSamplesHandler m_readyForMoreSamplesCallback;
 
 #if !RELEASE_LOG_DISABLED
     const Logger& logger() const final { return m_logger; }

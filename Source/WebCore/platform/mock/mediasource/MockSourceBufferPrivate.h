@@ -45,7 +45,7 @@ enum class SmoothSwitchStrategy {
     GOP
 };
 
-class MockSourceBufferPrivate final : public SourceBufferPrivate {
+class MockSourceBufferPrivate final : public SourceBufferPrivate, public CanMakeWeakPtr<MockSourceBufferPrivate> {
 public:
     static Ref<MockSourceBufferPrivate> LEGACY_NODELETE create(MockMediaSourcePrivate&);
     virtual ~MockSourceBufferPrivate();

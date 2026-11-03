@@ -193,10 +193,15 @@ MockSourceBufferPrivate::MockTrack::MockTrack(MockSourceBufferPrivate& priv, Tra
 {
 }
 
-void MockSourceBufferPrivate::notifyClientWhenReadyForMoreSamples(TrackID trackID)
+void MockSourceBufferPrivate::notifyClientWhenReadyForMoreSamples(TrackID trackId)
 {
-    RefPtr<MockTrack> track = m_tracks.at(trackID);
-    // TODO
+    RefPtr<MockTrack> track = m_tracks.at(trackId);
+
+    track->activeSink->notifyWhenReadyForMoreSamples([weakPtr = WeakPtr { *this }, this, trackId]() {
+        if (!weakPtr)
+            return;
+        provideMediaData(trackId);
+    });
 }
 
 bool MockSourceBufferPrivate::isReadyForMoreSamples(TrackID trackID)
@@ -288,7 +293,7 @@ void MockSourceBufferPrivate::setMaximumQueueDepthForTrackID(TrackID trackID, ui
         std::function<void()> readyForMoreSamplesCallback = std::exchange(track->readyForMoreSamplesCallback, std::function<void()>());
         if (readyForMoreSamplesCallback)
             readyForMoreSamplesCallback();
-        provideMediaData(trackID); // TODO: remove?
+        // provideMediaData(trackID); // TODO: remove?
     }
 }
 
