@@ -99,9 +99,6 @@ bool SmoothSwitchOnGOP::isReadyForMoreSamples()
 void SmoothSwitchOnGOP::notifyWhenReadyForMoreSamples(ReadyForMoreSamplesHandler&& callback)
 {
     m_readyForMoreSamplesCallback = WTF::move(callback);
-
-    if (m_innerSink->isReadyForMoreSamples())
-        tryInvokeReadyForMoreSamplesHandler();
 }
 
 static DecodeOrderSampleMap::const_iterator findSampleAfterLastDisplayable(const DecodeOrderSampleMap::MapType& samples, MediaTime highestDeliveredPresentationEndTime)

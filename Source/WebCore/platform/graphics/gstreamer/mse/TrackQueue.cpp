@@ -112,7 +112,6 @@ void TrackQueue::notifyWhenLowLevel(LowLevelHandler&& lowLevelCallback)
     ASSERT(isMainThread());
     TQ_TRACE("Setting lowLevelCallback%s.", m_lowLevelCallback ? " (previous callback will be discarded)" : "");
     m_lowLevelCallback = WTF::move(lowLevelCallback);
-    checkLowLevel();
 }
 
 GRefPtr<GstMiniObject> TrackQueue::pop()
