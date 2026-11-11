@@ -100,8 +100,11 @@ private:
     void tryFeedInnerSink();
     void tryFeedInnerSinkSamples(DecodeOrderSampleMap::MapType&);
     void tryNotifyReadyForMoreSamples();
+    bool isEmpty();
 
     ReadyForMoreSamplesHandler m_readyForMoreSamplesCallback;
+
+    bool m_hasAllSamples { false };
 
 #if !RELEASE_LOG_DISABLED
     const Logger& logger() const final { return m_logger; }

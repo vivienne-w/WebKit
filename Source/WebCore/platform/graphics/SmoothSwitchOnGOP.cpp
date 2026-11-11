@@ -156,8 +156,22 @@ void SmoothSwitchOnGOP::enqueueSample(Ref<MediaSample>&& sample)
 
 void SmoothSwitchOnGOP::allSamplesEnqueued()
 {
-    DEBUG_LOG(LOGIDENTIFIER);
-    // TODO: how to handle EOS? Probably just a flag, to keep things simple, as the other alternative would be a fake "EOS" MediaSample.
+    DEBUG_LOG(LOGIDENTIFIER, "All samples have been enqueued");
+    m_hasAllSamples = true;
+
+    if (isEmpty())
+        m_innerSink->allSamplesEnqueued();
+}
+
+bool SmoothSwitchOnGOP::isEmpty()
+{
+    if (auto* current = std::get_if<StateCollecting>(&m_currentState))
+        return current->oldSamples.empty();
+    else if (auto* current = std::get_if<StateVacating>(&m_currentState))
+        return current->vacatingQueue.empty();
+
+    ASSERT_NOT_REACHED();
+    return false;
 }
 
 void SmoothSwitchOnGOP::deliverSample(Ref<MediaSample>&& sample)
@@ -206,6 +220,11 @@ void SmoothSwitchOnGOP::tryFeedInnerSinkSamples(DecodeOrderSampleMap::MapType& s
         Ref<MediaSample> sample = samples.begin()->second;
         samples.erase(samples.begin());
         deliverSample(WTF::move(sample));
+    }
+
+    if (m_hasAllSamples && samples.empty()) {
+        m_innerSink->allSamplesEnqueued();
+        return;
     }
 
     // If inner sink is still ready for more samples, signal to upper layers to provide more.

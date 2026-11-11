@@ -358,6 +358,11 @@ void MockSourceBufferPrivate::MockTrackSampleSink::enqueueSample(Ref<MediaSample
     track->enqueuedSamples.append(toString(sample.get()));
 }
 
+void MockSourceBufferPrivate::MockTrackSampleSink::allSamplesEnqueued()
+{
+    m_hasAllSamples = true;
+}
+
 #if !RELEASE_LOG_DISABLED
 WTFLogChannel& MockSourceBufferPrivate::logChannel() const
 {

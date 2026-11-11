@@ -63,12 +63,13 @@ private:
         bool isReadyForMoreSamples() final;
         void notifyWhenReadyForMoreSamples(std::function<void()>&&) final;
         void enqueueSample(Ref<MediaSample>&&) final;
-        void allSamplesEnqueued() final {}
+        void allSamplesEnqueued() final;
         void flush() final;
 
     private:
         MockTrackSampleSink(MockSourceBufferPrivate&, MockTrack&, TrackID);
 
+        bool m_hasAllSamples { false };
         TrackID m_trackID;
         ThreadSafeWeakPtr<MockTrack> m_track;
         ThreadSafeWeakPtr<MockSourceBufferPrivate> m_private;
