@@ -197,8 +197,8 @@ void MockSourceBufferPrivate::notifyClientWhenReadyForMoreSamples(TrackID trackI
 {
     RefPtr<MockTrack> track = m_tracks.at(trackId);
 
-    track->activeSink->notifyWhenReadyForMoreSamples([weakPtr = WeakPtr { *this }, this, trackId]() {
-        if (!weakPtr)
+    track->activeSink->notifyWhenReadyForMoreSamples([weakThis = ThreadSafeWeakPtr { *this }, this, trackId]() {
+        if (!weakThis.get())
             return;
         provideMediaData(trackId);
     });
